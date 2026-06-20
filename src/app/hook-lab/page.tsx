@@ -23,6 +23,7 @@ import { FadeIn } from "@/components/Motion";
 import { WorkoutPanel } from "@/components/WorkoutPanel";
 import { useWorkout } from "@/lib/useWorkout";
 import { getStorage, setStorage } from "@/lib/storage";
+import { logActivity } from "@/lib/activity";
 import { loadProjects, saveProjects, loadActiveId } from "@/lib/writerTools";
 import {
   HOOK_TYPES,
@@ -106,6 +107,7 @@ export default function HookLabPage() {
       savedAt: new Date().toLocaleDateString(),
     };
     persistSaved([hook, ...savedHooks]);
+    logActivity();
     // Workout: increment the relevant action(s).
     wk.recordAction("save");
     if (hookType === "Title Hook") wk.recordAction("title");

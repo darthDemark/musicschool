@@ -26,6 +26,7 @@ import { FadeIn } from "@/components/Motion";
 import { analyzeSong, extractYouTubeId } from "@/lib/youtube";
 import { purpleRainReport } from "@/lib/mockData";
 import { getStorage, setStorage } from "@/lib/storage";
+import { logActivity } from "@/lib/activity";
 import type { HitLabReport } from "@/lib/types";
 
 const ANALYSIS_TABS = [
@@ -125,6 +126,7 @@ export default function HitLabPage() {
         analyzedAt: new Date(data.analyzedAt).toLocaleDateString(),
         report: newReport,
       });
+      logActivity();
       setShowHistory(false);
     } catch {
       setError("Could not reach the analysis service. Please try again.");

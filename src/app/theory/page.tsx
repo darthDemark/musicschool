@@ -17,6 +17,8 @@ import { PianoKeyboard } from "@/components/PianoKeyboard";
 import { curriculumUnits } from "@/lib/mockData";
 import { theoryCurriculum, theorySectionOrder } from "@/lib/theoryCurriculum";
 import { getStorage, setStorage } from "@/lib/storage";
+import { markSubtopicComplete } from "@/lib/theoryProgress";
+import { logActivity } from "@/lib/activity";
 
 const CATEGORY_KEY = "theory-active-category";
 const SUBTOPIC_KEY = "theory-active-subtopic";
@@ -68,6 +70,14 @@ export default function TheoryPage() {
   const subtopic =
     category.subtopics.find((s) => s.id === activeSubtopic) ?? category.subtopics[0];
   const unitMeta = curriculumUnits.find((u) => u.id === activeCategory);
+
+  // Mark the subtopic complete once all its quiz questions are answered.
+  useEffect(() => {
+    if (subtopic.quiz.length > 0 && Object.keys(answers).length >= subtopic.quiz.length) {
+      markSubtopicComplete(activeCategory, activeSubtopic);
+      logActivity();
+    }
+  }, [answers, activeCategory, activeSubtopic, subtopic.quiz.length]);
 
   return (
     <div>
