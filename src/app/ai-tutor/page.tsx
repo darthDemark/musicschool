@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { BookOpen, TrendingUp, Sparkles } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, SectionTitle } from "@/components/Card";
@@ -9,7 +12,21 @@ import {
   tutorSuggestedPrompts,
 } from "@/lib/mockData";
 
+const CONTEXTS = [
+  "Theory",
+  "Counterpoint",
+  "Hit Lab",
+  "Hook Lab",
+  "Songwriting",
+  "Composition",
+  "Ear Training",
+] as const;
+
+type Context = (typeof CONTEXTS)[number];
+
 export default function AITutorPage() {
+  const [context, setContext] = useState<Context>("Theory");
+
   return (
     <div>
       <PageHeader
@@ -18,9 +35,27 @@ export default function AITutorPage() {
         subtitle="A serious music tutor that can teach, quiz, analyze, and coach — across theory, ear, and craft."
       />
 
+      {/* Context selector */}
+      <div className="mb-6 flex flex-wrap gap-2">
+        <p className="label-caps mr-2 mt-1.5">Focus</p>
+        {CONTEXTS.map((ctx) => (
+          <button
+            key={ctx}
+            onClick={() => setContext(ctx)}
+            className={`rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
+              context === ctx
+                ? "border-brass bg-brass/15 font-medium text-ink"
+                : "border-line bg-white/60 text-muted hover:border-brass/50 hover:text-ink"
+            }`}
+          >
+            {ctx}
+          </button>
+        ))}
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         {/* Chat */}
-        <TutorChat />
+        <TutorChat context={context} />
 
         {/* Side panels */}
         <aside className="space-y-6">
@@ -49,7 +84,9 @@ export default function AITutorPage() {
               <SectionTitle>Lesson Context</SectionTitle>
             </div>
             <p className="label-caps">Currently Studying</p>
-            <p className="mt-1 font-serif text-lg text-ink">{continueLearning.unit}</p>
+            <p className="mt-1 font-serif text-lg text-ink">
+              {continueLearning.unit}
+            </p>
             <p className="text-sm text-muted">
               Lesson {continueLearning.lessonNumber}: {continueLearning.title}
             </p>
@@ -67,7 +104,11 @@ export default function AITutorPage() {
               <TrendingUp className="h-4 w-4 text-brass" />
               <SectionTitle>Student Progress</SectionTitle>
             </div>
-            <ProgressRing value={dashboardStats.overallProgress} size={120} sublabel="Overall" />
+            <ProgressRing
+              value={dashboardStats.overallProgress}
+              size={120}
+              sublabel="Overall"
+            />
             <div className="mt-5 grid w-full grid-cols-2 gap-3 text-left">
               <Stat label="Lessons" value={dashboardStats.lessonsCompleted} />
               <Stat label="Analyzed" value={dashboardStats.songsAnalyzed} />
