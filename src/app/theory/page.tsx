@@ -4,6 +4,7 @@ import { useState } from "react";
 import { BookOpen, Music2, Volume2, ClipboardCheck, NotebookPen } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, SectionTitle } from "@/components/Card";
+import { PianoKeyboard } from "@/components/PianoKeyboard";
 import {
   curriculumUnits,
   currentLesson,
@@ -11,6 +12,7 @@ import {
   lessonExplanation,
   practiceAssignment,
 } from "@/lib/mockData";
+import { playMajorTriad, playMinorTriad, playAuthenticCadence } from "@/lib/audioEngine";
 
 export default function TheoryPage() {
   const [activeUnit, setActiveUnit] = useState(
@@ -131,21 +133,35 @@ export default function TheoryPage() {
               </div>
             </div>
 
-            {/* Audio example placeholder */}
+            {/* Interactive keyboard + audio examples */}
             <div className="mt-6">
-              <p className="label-caps mb-2">Audio Example</p>
-              <div className="flex items-center gap-4 rounded-lg border border-line bg-white/60 p-4">
-                <button className="flex h-11 w-11 items-center justify-center rounded-full bg-charcoal text-ivory transition-colors hover:bg-ink">
-                  <Volume2 className="h-5 w-5" />
+              <p className="label-caps mb-2">Keyboard & Audio Examples</p>
+              <PianoKeyboard startMidi={48} endMidi={72} />
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  onClick={() => playMajorTriad(60)}
+                  className="flex items-center gap-1.5 rounded-lg border border-line bg-white/60 px-3 py-2 text-xs text-ink transition-colors hover:border-brass hover:bg-brass/5"
+                >
+                  <Volume2 className="h-3.5 w-3.5 text-brass" />
+                  C Major Triad
                 </button>
-                <div className="flex-1">
-                  <div className="h-8 w-full rounded bg-[repeating-linear-gradient(to_right,#C49B3D_0,#C49B3D_2px,transparent_2px,transparent_6px)] opacity-50" />
-                </div>
-                <span className="text-xs text-muted">0:24</span>
+                <button
+                  onClick={() => playMinorTriad(60)}
+                  className="flex items-center gap-1.5 rounded-lg border border-line bg-white/60 px-3 py-2 text-xs text-ink transition-colors hover:border-brass hover:bg-brass/5"
+                >
+                  <Volume2 className="h-3.5 w-3.5 text-brass" />
+                  C Minor Triad
+                </button>
+                <button
+                  onClick={() => playAuthenticCadence(60)}
+                  className="flex items-center gap-1.5 rounded-lg border border-line bg-white/60 px-3 py-2 text-xs text-ink transition-colors hover:border-brass hover:bg-brass/5"
+                >
+                  <Volume2 className="h-3.5 w-3.5 text-brass" />
+                  Authentic Cadence (V7→I)
+                </button>
               </div>
               <p className="mt-1 text-xs text-muted">
-                Audio playback placeholder — connect a sampled instrument or audio
-                file here.
+                Click keys to play notes or use the example buttons above.
               </p>
             </div>
 
