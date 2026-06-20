@@ -24,8 +24,12 @@ const CONTEXTS = [
 
 type Context = (typeof CONTEXTS)[number];
 
+const LEVELS = ["Beginner", "Intermediate", "Advanced"] as const;
+type Level = (typeof LEVELS)[number];
+
 export default function AITutorPage() {
   const [context, setContext] = useState<Context>("Theory");
+  const [level, setLevel] = useState<Level>("Beginner");
 
   return (
     <div>
@@ -36,7 +40,7 @@ export default function AITutorPage() {
       />
 
       {/* Context selector */}
-      <div className="mb-6 flex flex-wrap gap-2">
+      <div className="mb-3 flex flex-wrap gap-2">
         <p className="label-caps mr-2 mt-1.5">Focus</p>
         {CONTEXTS.map((ctx) => (
           <button
@@ -53,9 +57,27 @@ export default function AITutorPage() {
         ))}
       </div>
 
+      {/* Level selector */}
+      <div className="mb-6 flex flex-wrap gap-2">
+        <p className="label-caps mr-2 mt-1.5">Level</p>
+        {LEVELS.map((lv) => (
+          <button
+            key={lv}
+            onClick={() => setLevel(lv)}
+            className={`rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
+              level === lv
+                ? "border-burgundy bg-burgundy/10 font-medium text-burgundy"
+                : "border-line bg-white/60 text-muted hover:border-burgundy/50 hover:text-ink"
+            }`}
+          >
+            Explain like {lv}
+          </button>
+        ))}
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         {/* Chat */}
-        <TutorChat context={context} />
+        <TutorChat context={context} level={level} />
 
         {/* Side panels */}
         <aside className="space-y-6">
