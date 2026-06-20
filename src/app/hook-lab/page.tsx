@@ -9,12 +9,15 @@ import {
   Star,
   BookmarkPlus,
   Loader2,
+  GraduationCap,
+  Quote,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, SectionTitle } from "@/components/Card";
+import { FadeIn } from "@/components/Motion";
 import { hookTypes, hookWorkout } from "@/lib/mockData";
+import { hookLessons } from "@/lib/hookLessons";
 import { getStorage, setStorage } from "@/lib/storage";
-import { askAI, parseListResponse } from "@/lib/aiClient";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -155,17 +158,24 @@ export default function HookLabPage() {
     setStorage("hook-lab", next);
   };
 
-  // AI-first generation with a deterministic local fallback.
+  // Server-side generation (AI-first, with a local fallback in the route).
   const generate = async () => {
     setGenerating(true);
     setHasGenerated(true);
-    const prompt = `Generate 5 original ${hookType.toLowerCase()} ideas for a song. Theme: ${
-      theme || "open"
-    }. Emotion: ${emotion || "open"}. Return one short hook per line, no numbering, no copyrighted lyrics.`;
-    const ai = await askAI(prompt, "Hook Lab");
-    const ideas = ai ? parseListResponse(ai, 5) : getIdeas(theme, emotion);
-    setGeneratedIdeas(ideas.length ? ideas : getIdeas(theme, emotion));
-    setGenerating(false);
+    try {
+      const res = await fetch("/api/hooks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ theme, emotion, hookType }),
+      });
+      const data = await res.json();
+      const ideas: string[] = Array.isArray(data?.ideas) ? data.ideas : [];
+      setGeneratedIdeas(ideas.length ? ideas : getIdeas(theme, emotion));
+    } catch {
+      setGeneratedIdeas(getIdeas(theme, emotion));
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const saveHook = (text: string) => {
@@ -203,9 +213,55 @@ export default function HookLabPage() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-6">
+          {/* Hook type lesson — unique training content per type */}
+          {hookLessons[hookType] && (
+            <Card>
+              <FadeIn motionKey={hookType}>
+                <div className="mb-3 flex items-center gap-2">
+                  <GraduationCap className="h-4 w-4 text-brass" />
+                  <SectionTitle>{hookType}</SectionTitle>
+                </div>
+                <p className="text-[15px] leading-relaxed text-ink">
+                  {hookLessons[hookType].whatItIs}
+                </p>
+                <div className="mt-4">
+                  <p className="label-caps mb-1">Why It Works</p>
+                  <p className="text-sm text-muted">{hookLessons[hookType].whyItWorks}</p>
+                </div>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <p className="label-caps mb-2">Examples</p>
+                    <ul className="space-y-1.5">
+                      {hookLessons[hookType].examples.map((ex) => (
+                        <li key={ex} className="flex items-center gap-2 text-sm text-ink">
+                          <Quote className="h-3.5 w-3.5 shrink-0 text-brass" />
+                          {ex}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <p className="label-caps mb-2">Mechanics</p>
+                    <ul className="space-y-1.5">
+                      {hookLessons[hookType].mechanics.map((m) => (
+                        <li key={m} className="flex gap-2 text-sm text-ink">
+                          <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brass" />
+                          {m}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </FadeIn>
+            </Card>
+          )}
+
           {/* Hook Builder */}
           <Card>
             <SectionTitle className="mb-4">Hook Builder</SectionTitle>
+            <p className="mb-4 text-sm text-muted">
+              Choose a hook type to study it above, then generate ideas to practice.
+            </p>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Theme">
                 <input
