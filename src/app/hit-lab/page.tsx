@@ -22,9 +22,9 @@ import { EnergyCurve } from "@/components/EnergyCurve";
 import { GenomeRadar } from "@/components/GenomeScore";
 import { Tabs } from "@/components/Tabs";
 import { EmptyState, ExampleBadge } from "@/components/EmptyState";
-import { analyzeSong, extractYouTubeId, generateMockReport } from "@/lib/youtube";
+import { FadeIn } from "@/components/Motion";
+import { analyzeSong, extractYouTubeId } from "@/lib/youtube";
 import { purpleRainReport } from "@/lib/mockData";
-import { askAI } from "@/lib/aiClient";
 import { getStorage, setStorage } from "@/lib/storage";
 import type { HitLabReport } from "@/lib/types";
 
@@ -95,31 +95,42 @@ export default function HitLabPage() {
       setError("Paste a YouTube link to analyze a song.");
       return;
     }
-    const videoId = extractYouTubeId(url);
-    if (!videoId) {
+    if (!extractYouTubeId(url)) {
       setError("Please enter a valid YouTube link.");
       return;
     }
     setAnalyzing(true);
     setIsExample(false);
 
-    // Dynamic, per-video report. If an AI key is configured, enrich the overview.
-    const base = generateMockReport(url, videoId);
-    const ai = await askAI(
-      `In 2-3 sentences, write an educational overview of the song craft of the YouTube video ${url} (structure, hooks, arrangement). Do not reproduce lyrics.`,
-      "Hit Lab"
-    );
-    const newReport: HitLabReport = ai ? { ...base, overview: ai } : base;
-
-    setReport(newReport);
-    persist({
-      url,
-      videoId,
-      analyzedAt: new Date().toLocaleDateString(),
-      report: newReport,
-    });
-    setAnalyzing(false);
-    setShowHistory(false);
+    // Server route fetches real title/channel (YouTube oEmbed), parses
+    // "Artist - Song", and builds a per-video report. No client→YouTube calls.
+    try {
+      const res = await fetch("/api/song-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.report) {
+        setError(data?.error ?? "Could not analyze that link. Try another.");
+        setAnalyzing(false);
+        return;
+      }
+      const newReport: HitLabReport = data.report;
+      setReport(newReport);
+      setUrl(data.url);
+      persist({
+        url: data.url,
+        videoId: data.videoId,
+        analyzedAt: new Date(data.analyzedAt).toLocaleDateString(),
+        report: newReport,
+      });
+      setShowHistory(false);
+    } catch {
+      setError("Could not reach the analysis service. Please try again.");
+    } finally {
+      setAnalyzing(false);
+    }
   };
 
   const loadExample = () => {
@@ -203,7 +214,7 @@ export default function HitLabPage() {
                 >
                   <div>
                     <p className="text-sm font-medium text-ink">
-                      {r.report.song} — {r.report.artist}
+                      {r.report.artist} — {r.report.song}
                     </p>
                     <p className="text-xs text-muted">
                       {r.videoId} · {r.analyzedAt}
@@ -244,7 +255,7 @@ export default function HitLabPage() {
               </span>
             </div>
           )}
-          <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+          <FadeIn motionKey={report.youtubeId} className="grid gap-6 lg:grid-cols-[1fr_360px]">
             {/* Main analysis */}
             <div className="space-y-6">
               <Card>
@@ -347,7 +358,7 @@ export default function HitLabPage() {
                 </div>
               </Card>
             </aside>
-          </div>
+          </FadeIn>
         </>
       )}
     </div>
