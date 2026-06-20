@@ -1,37 +1,32 @@
 "use client";
 
-import { useState } from "react";
-import { Play, Pause, SkipBack, Music2, FileText } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Music2, FileText } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, SectionTitle } from "@/components/Card";
-import { compositionAssignment, compositionCategories } from "@/lib/mockData";
+import { CompositionStudio } from "@/components/CompositionStudio";
+import { compositionLabs } from "@/lib/mockData";
 
-const WHITE_KEYS = ["C", "D", "E", "F", "G", "A", "B", "C", "D", "E", "F", "G", "A", "B"];
-// Index after which a black key follows (no black key after E and B).
-const BLACK_AFTER = new Set([0, 1, 3, 4, 5, 7, 8, 10, 11, 12]);
-
-function PianoKeyboard() {
-  return (
-    <div className="relative flex h-32 w-full select-none overflow-hidden rounded-lg border border-line bg-white">
-      {WHITE_KEYS.map((key, i) => (
-        <div
-          key={`${key}-${i}`}
-          className="relative flex flex-1 items-end justify-center border-r border-line pb-2 text-[10px] text-muted transition-colors last:border-r-0 hover:bg-sand"
-        >
-          {key}
-          {BLACK_AFTER.has(i) && (
-            <span className="absolute -right-[7px] top-0 z-10 h-20 w-[14px] rounded-b bg-charcoal" />
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
+const STORAGE_KEY = "music-school:composition-active-lab";
 
 export default function CompositionLabPage() {
-  const [category, setCategory] = useState(compositionCategories[0]);
-  const [playing, setPlaying] = useState(false);
-  const [showDetails, setShowDetails] = useState(true);
+  const [activeLab, setActiveLab] = useState<string>(compositionLabs[0].id);
+
+  // Restore the last-selected lab from localStorage.
+  useEffect(() => {
+    const saved = window.localStorage.getItem(STORAGE_KEY);
+    if (saved && compositionLabs.some((lab) => lab.id === saved)) {
+      setActiveLab(saved);
+    }
+  }, []);
+
+  const selectLab = (id: string) => {
+    setActiveLab(id);
+    window.localStorage.setItem(STORAGE_KEY, id);
+  };
+
+  const selectedLab =
+    compositionLabs.find((lab) => lab.id === activeLab) ?? compositionLabs[0];
 
   return (
     <div>
@@ -45,108 +40,76 @@ export default function CompositionLabPage() {
         {/* Lab categories */}
         <aside className="space-y-2">
           <p className="label-caps mb-2">Labs</p>
-          {compositionCategories.map((cat) => (
+          {compositionLabs.map((lab) => (
             <button
-              key={cat}
-              onClick={() => setCategory(cat)}
+              key={lab.id}
+              onClick={() => selectLab(lab.id)}
               className={`flex w-full items-center gap-2 rounded-lg border px-4 py-3 text-left text-sm transition-colors ${
-                category === cat
+                activeLab === lab.id
                   ? "border-brass bg-brass/10 text-ink"
                   : "border-line bg-white/60 text-muted hover:text-ink"
               }`}
             >
               <Music2 className="h-4 w-4 text-brass" />
-              {cat}
+              {lab.category}
             </button>
           ))}
         </aside>
 
         {/* Workspace */}
         <div className="space-y-6">
+          {/* Assignment — driven by selectedLab */}
           <Card>
-            <div className="flex items-start justify-between">
+            <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="label-caps text-brass">Current Assignment • {category}</p>
-                <SectionTitle className="mt-1">
-                  {compositionAssignment.title}
-                </SectionTitle>
-                <p className="mt-1 text-sm text-muted">
-                  {compositionAssignment.description}
+                <p className="label-caps text-brass">
+                  Current Assignment • {selectedLab.category}
                 </p>
+                <SectionTitle className="mt-1">{selectedLab.title}</SectionTitle>
+                <p className="mt-1 text-sm text-muted">{selectedLab.subtitle}</p>
               </div>
-              <button
-                onClick={() => setShowDetails((s) => !s)}
-                className="btn-ghost"
-              >
-                <FileText className="h-4 w-4" />
-                Assignment Details
-              </button>
+              <span className="hidden shrink-0 items-center gap-2 rounded-lg border border-line bg-sand px-3 py-2 text-xs text-muted sm:inline-flex">
+                <FileText className="h-4 w-4 text-brass" />
+                Assignment
+              </span>
             </div>
 
-            {showDetails && (
-              <ol className="mt-4 space-y-2 rounded-lg border border-line bg-sand/40 p-5">
-                {compositionAssignment.details.map((d, i) => (
+            <p className="mt-4 text-[15px] leading-relaxed text-ink">
+              {selectedLab.explanation}
+            </p>
+
+            <div className="mt-5">
+              <p className="label-caps mb-2">Assignment Steps</p>
+              <ol className="space-y-2 rounded-lg border border-line bg-sand/40 p-5">
+                {selectedLab.steps.map((step, i) => (
                   <li key={i} className="flex gap-3 text-sm text-ink">
                     <span className="font-serif text-brass">{i + 1}.</span>
-                    {d}
+                    {step}
                   </li>
                 ))}
               </ol>
-            )}
-
-            {/* Notation editor placeholder */}
-            <div className="mt-6">
-              <p className="label-caps mb-2">Notation Editor</p>
-              <div className="rounded-lg border border-line bg-white">
-                <div className="space-y-6 p-6">
-                  {[0, 1].map((staff) => (
-                    <div
-                      key={staff}
-                      className="h-20 w-full bg-[repeating-linear-gradient(to_bottom,transparent_0,transparent_15px,#D8CFC0_15px,#D8CFC0_16px)] bg-[length:100%_80px] bg-no-repeat"
-                    />
-                  ))}
-                </div>
-              </div>
-              <p className="mt-1 text-xs text-muted">
-                Notation editor placeholder — integrate a music notation library
-                (e.g. VexFlow / OpenSheetMusicDisplay) here.
-              </p>
             </div>
 
-            {/* Piano keyboard */}
-            <div className="mt-6">
-              <p className="label-caps mb-2">Keyboard</p>
-              <PianoKeyboard />
-            </div>
-
-            {/* Playback controls */}
-            <div className="mt-6 flex items-center gap-3 rounded-lg border border-line bg-charcoal p-4">
-              <button className="flex h-10 w-10 items-center justify-center rounded-full text-ivory transition-colors hover:bg-white/10">
-                <SkipBack className="h-5 w-5" />
-              </button>
-              <button
-                onClick={() => setPlaying((p) => !p)}
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-brass text-charcoal transition-transform hover:scale-105"
-              >
-                {playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-              </button>
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/15">
-                <div className="h-full w-1/3 rounded-full bg-brass" />
+            <div className="mt-5">
+              <p className="label-caps mb-2">Topics in this Lab</p>
+              <div className="flex flex-wrap gap-2">
+                {selectedLab.topics.map((topic) => (
+                  <span key={topic} className="chip">
+                    {topic}
+                  </span>
+                ))}
               </div>
-              <span className="text-xs text-white/60">0:12 / 0:36</span>
             </div>
           </Card>
 
-          {/* Topics */}
+          {/* Studio stays mounted across lab switches so its state persists */}
           <Card>
-            <SectionTitle className="mb-3">Topics in this Curriculum</SectionTitle>
-            <div className="flex flex-wrap gap-2">
-              {compositionAssignment.topics.map((topic) => (
-                <span key={topic} className="chip">
-                  {topic}
-                </span>
-              ))}
-            </div>
+            <SectionTitle className="mb-4">Studio</SectionTitle>
+            <CompositionStudio />
+            <p className="mt-3 text-xs text-muted">
+              Interactive prototype studio (Web Audio). Integrate a notation
+              library (e.g. VexFlow / OpenSheetMusicDisplay) for full scoring.
+            </p>
           </Card>
         </div>
       </div>
