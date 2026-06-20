@@ -571,32 +571,105 @@ export const compositionCategories = [
   "Form & Analysis",
 ];
 
-export const compositionAssignment = {
-  title: "Two-Part Invention",
-  description: "Write a two-part invention in C major.",
-  details: [
-    "State a clear subject of one to two measures in the upper voice.",
-    "Answer with the subject in the lower voice while the upper voice supplies a countersubject.",
-    "Develop the material through sequence, inversion, and episodes in related keys.",
-    "Return to C major for a decisive cadence. Maintain two independent, singable lines throughout.",
-  ],
-  topics: [
-    "Advanced counterpoint",
-    "Parallel keys",
-    "Extended chords",
-    "Unorthodox harmony",
-    "Passing tones",
-    "Voice leading",
-    "Fugue",
-    "Canon",
-    "Modal interchange",
-    "Non-functional harmony",
-    "Polytonality",
-    "Pedal harmony",
-    "Planing",
-    "Symmetrical harmony",
-  ],
-};
+export interface CompositionLab {
+  category: string;
+  title: string;
+  description: string;
+  details: string[];
+  topics: string[];
+}
+
+// Each lab category has its own example assignment. Users replace these by
+// writing in the sequencer/keyboard and saving their own exercises.
+export const compositionLabs: CompositionLab[] = [
+  {
+    category: "Counterpoint",
+    title: "Two-Part Invention",
+    description: "Write a two-part invention in C major.",
+    details: [
+      "State a clear subject of one to two measures in the upper voice.",
+      "Answer with the subject in the lower voice while the upper voice supplies a countersubject.",
+      "Develop the material through sequence, inversion, and episodes in related keys.",
+      "Return to C major for a decisive cadence.",
+    ],
+    topics: ["Advanced counterpoint", "Passing tones", "Voice leading", "Canon"],
+  },
+  {
+    category: "Fugue",
+    title: "Fugue Exposition",
+    description: "Build a subject, answer, countersubject, and episode.",
+    details: [
+      "Write a short subject with a clear rhythmic identity.",
+      "Answer the subject in the dominant.",
+      "Add a countersubject that works above or below the subject.",
+      "Create a short episode using sequence.",
+    ],
+    topics: ["Fugue", "Invertible counterpoint", "Sequence", "Episodes"],
+  },
+  {
+    category: "Reharmonization",
+    title: "Reharmonize a Melody",
+    description: "Give one melody three different harmonic treatments.",
+    details: [
+      "Start with a simple diatonic harmonization.",
+      "Add secondary dominants.",
+      "Add modal interchange or borrowed chords.",
+      "Compare the emotional effect of each version.",
+    ],
+    topics: ["Secondary dominants", "Modal interchange", "Extended chords"],
+  },
+  {
+    category: "Modal Interchange",
+    title: "Parallel Key Color Study",
+    description: "Borrow chords from the parallel minor or major.",
+    details: [
+      "Write a progression in a major key.",
+      "Borrow one chord from the parallel minor.",
+      "Resolve smoothly back to the home key.",
+      "Describe how the borrowed chord changes the mood.",
+    ],
+    topics: ["Modal interchange", "Parallel keys", "Borrowed chords"],
+  },
+  {
+    category: "Chromatic Harmony",
+    title: "Chromatic Expansion",
+    description: "Use color chords without losing musical direction.",
+    details: [
+      "Begin with a simple tonic-to-dominant progression.",
+      "Add a chromatic mediant or altered dominant.",
+      "Use smooth voice leading between chords.",
+      "Resolve tension clearly.",
+    ],
+    topics: ["Chromatic mediants", "Altered dominants", "Voice leading"],
+  },
+  {
+    category: "Orchestration",
+    title: "Arrange for Ensemble",
+    description: "Distribute melody, harmony, bass, and color across instruments.",
+    details: [
+      "Assign the main melody to one instrument.",
+      "Give harmonic support to inner voices.",
+      "Use bass motion to clarify the progression.",
+      "Add color or counter-melody without crowding the texture.",
+    ],
+    topics: ["Orchestration", "Pedal harmony", "Planing", "Counter-melody"],
+  },
+  {
+    category: "Form & Analysis",
+    title: "Analyze Musical Form",
+    description: "Map sections, motives, contrast, and return.",
+    details: [
+      "Identify the primary theme or motive.",
+      "Mark contrasting sections.",
+      "Track how the material develops.",
+      "Explain how the piece returns or resolves.",
+    ],
+    topics: ["Form & analysis", "Motivic development", "Symmetrical harmony"],
+  },
+];
+
+// Backwards-compatible default (first lab).
+export const compositionAssignment = compositionLabs[0];
 
 // ---------------------------------------------------------------------------
 // Song Vault

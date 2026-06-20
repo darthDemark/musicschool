@@ -14,8 +14,9 @@ import {
 import { PageHeader } from "@/components/PageHeader";
 import { Card, SectionTitle } from "@/components/Card";
 import { PianoKeyboard } from "@/components/PianoKeyboard";
+import { ExampleBadge } from "@/components/EmptyState";
 import { playNote, playMelody } from "@/lib/audioEngine";
-import { compositionAssignment, compositionCategories } from "@/lib/mockData";
+import { compositionLabs, compositionCategories } from "@/lib/mockData";
 import { getStorage, setStorage } from "@/lib/storage";
 
 // ---------------------------------------------------------------------------
@@ -129,6 +130,8 @@ function Sequencer({
 
 export default function CompositionLabPage() {
   const [category, setCategory] = useState(compositionCategories[0]);
+  const lab =
+    compositionLabs.find((l) => l.category === category) ?? compositionLabs[0];
   const [showDetails, setShowDetails] = useState(true);
   const [grid, setGrid] = useState<Grid>(emptyGrid);
   const [bpm, setBpm] = useState(120);
@@ -311,15 +314,11 @@ export default function CompositionLabPage() {
           <Card>
             <div className="flex items-start justify-between">
               <div>
-                <p className="label-caps text-brass">
-                  Current Assignment • {category}
+                <p className="label-caps flex items-center gap-2 text-brass">
+                  Current Assignment • {category} <ExampleBadge />
                 </p>
-                <SectionTitle className="mt-1">
-                  {compositionAssignment.title}
-                </SectionTitle>
-                <p className="mt-1 text-sm text-muted">
-                  {compositionAssignment.description}
-                </p>
+                <SectionTitle className="mt-1">{lab.title}</SectionTitle>
+                <p className="mt-1 text-sm text-muted">{lab.description}</p>
               </div>
               <button
                 onClick={() => setShowDetails((s) => !s)}
@@ -332,7 +331,7 @@ export default function CompositionLabPage() {
 
             {showDetails && (
               <ol className="mt-4 space-y-2 rounded-lg border border-line bg-sand/40 p-5">
-                {compositionAssignment.details.map((d, i) => (
+                {lab.details.map((d, i) => (
                   <li key={i} className="flex gap-3 text-sm text-ink">
                     <span className="font-serif text-brass">{i + 1}.</span>
                     {d}
@@ -469,9 +468,9 @@ export default function CompositionLabPage() {
 
           {/* Topics */}
           <Card>
-            <SectionTitle className="mb-3">Topics in this Curriculum</SectionTitle>
+            <SectionTitle className="mb-3">Topics in this Lab</SectionTitle>
             <div className="flex flex-wrap gap-2">
-              {compositionAssignment.topics.map((topic) => (
+              {lab.topics.map((topic) => (
                 <span key={topic} className="chip">
                   {topic}
                 </span>

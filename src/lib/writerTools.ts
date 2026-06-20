@@ -34,6 +34,8 @@ export interface WriterProject {
   id: string;
   name: string;
   updatedAt: number;
+  /** True only for the onboarding example; cleared on first user edit. */
+  isExample?: boolean;
   lyrics: LyricSections;
   themes: ThemeState;
   chords: string;
@@ -111,6 +113,7 @@ export function blankProject(name = "Untitled Song"): WriterProject {
 
 function seedProject(): WriterProject {
   const p = blankProject("Dangerous Love");
+  p.isExample = true;
   p.lyrics.title = "Dangerous Love";
   p.lyrics.verse1 =
     "Midnight on your skin, I shouldn't be here\nEvery warning sign, but I disappear";

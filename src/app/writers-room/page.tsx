@@ -12,6 +12,7 @@ import {
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/Card";
 import { Tabs } from "@/components/Tabs";
+import { ExampleBadge } from "@/components/EmptyState";
 import {
   blankProject,
   loadActiveId,
@@ -80,7 +81,9 @@ export default function WritersRoomPage() {
   const setProject = (updater: (p: WriterProject) => WriterProject) => {
     setProjects((prev) =>
       prev.map((p) =>
-        p.id === activeId ? { ...updater(p), updatedAt: Date.now() } : p
+        p.id === activeId
+          ? { ...updater(p), updatedAt: Date.now(), isExample: false }
+          : p
       )
     );
   };
@@ -168,7 +171,9 @@ export default function WritersRoomPage() {
             <PenLine className="h-5 w-5" />
           </span>
           <div>
-            <p className="label-caps text-brass">Current Project</p>
+            <p className="label-caps flex items-center gap-2 text-brass">
+              Current Project {active.isExample && <ExampleBadge />}
+            </p>
             <input
               value={active.name}
               onChange={(e) =>
@@ -193,6 +198,19 @@ export default function WritersRoomPage() {
           </select>
         </div>
       </Card>
+
+      {active.isExample && (
+        <div className="mb-6 flex flex-col gap-3 rounded-lg border border-amber/30 bg-amber/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-sm text-ink">
+            This is an example project to show you around. Edit it freely — your
+            first change makes it yours — or start fresh.
+          </span>
+          <button onClick={newProject} className="btn-brass shrink-0">
+            <Plus className="h-4 w-4" />
+            Create your first project
+          </button>
+        </div>
+      )}
 
       <Card>
         <Tabs tabs={TABS}>
