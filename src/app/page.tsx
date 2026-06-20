@@ -12,12 +12,12 @@ import { ContinueLearningCard } from "@/components/LessonCard";
 import { ProgressRing } from "@/components/ProgressRing";
 import { StatCard } from "@/components/StatCard";
 import { Card, SectionTitle } from "@/components/Card";
+import { DashboardWorkout } from "@/components/DashboardWorkout";
 import {
   continueLearning,
   currentUser,
   dashboardStats,
   todaysListening,
-  todaysWriting,
 } from "@/lib/mockData";
 
 export default function DashboardPage() {
@@ -68,23 +68,8 @@ export default function DashboardPage() {
               </Link>
             </Card>
 
-            {/* Writing assignment */}
-            <Card className="flex flex-col">
-              <div className="mb-3 flex items-center gap-2">
-                <PenLine className="h-4 w-4 text-brass" />
-                <p className="label-caps">Today&apos;s Writing</p>
-              </div>
-              <div className="mb-4">
-                <p className="font-serif text-lg text-ink">{todaysWriting.task}</p>
-                <p className="mt-1 text-sm text-muted">
-                  Focus:{" "}
-                  <span className="text-ink">{todaysWriting.focus}</span>
-                </p>
-              </div>
-              <Link href="/hook-lab" className="btn-brass mt-auto w-full">
-                Open Hook Lab
-              </Link>
-            </Card>
+            {/* Writing workout — live from Hook Lab */}
+            <DashboardWorkout />
           </div>
 
           {/* Stat strip */}
