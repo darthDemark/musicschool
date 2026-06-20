@@ -61,6 +61,9 @@ export interface EnergyPoint {
 }
 
 export interface HitLabReport {
+  id: string;
+  url: string;
+  createdAt: number;
   song: string;
   artist: string;
   genre: string;
@@ -85,11 +88,37 @@ export interface HookEntry {
   score: number;
 }
 
+export interface HookStyle {
+  id: string;
+  name: string;
+  definition: string;
+  purpose: string;
+  examples: string[];
+  drill: string;
+  scoring: string[];
+}
+
+export interface ScoringCriterion {
+  key: string;
+  label: string;
+  description: string;
+}
+
 export interface RhymeGroup {
   perfect: string[];
   near: string[];
   multi: string[];
   slant: string[];
+}
+
+export interface CompositionLab {
+  id: string;
+  category: string;
+  title: string;
+  subtitle: string;
+  steps: string[];
+  explanation: string;
+  topics: string[];
 }
 
 export interface VaultSong {

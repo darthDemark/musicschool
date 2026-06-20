@@ -1,11 +1,14 @@
 import type {
   ComposerProfileData,
+  CompositionLab,
   CurriculumUnit,
   HitLabReport,
   HookEntry,
+  HookStyle,
   Lesson,
   ListeningTrack,
   RhymeGroup,
+  ScoringCriterion,
   SimilarSong,
   User,
   VaultSong,
@@ -310,6 +313,9 @@ export const featuredListening = {
 // ---------------------------------------------------------------------------
 
 export const purpleRainReport: HitLabReport = {
+  id: "demo-purple-rain",
+  url: "https://www.youtube.com/watch?v=TvnYmWpD_T8",
+  createdAt: 0,
   song: "Purple Rain",
   artist: "Prince",
   genre: "Rock / Pop Ballad",
@@ -428,8 +434,164 @@ export const hookTypes = [
   "Melodic Hook",
   "Rhythmic Hook",
   "Lyrical Hook",
-  "Vocal Ad-lib",
+  "Vocal Ad-lib Hook",
   "Instrumental Hook",
+  "Production Hook",
+  "Structural Hook",
+];
+
+export const genres = [
+  "Pop",
+  "Rock",
+  "R&B",
+  "Soul",
+  "Blues",
+  "Funk",
+  "Hip-Hop",
+  "Jazz",
+  "Film",
+];
+
+// The shared scoring rubric used for every hook (Hook Analysis + style cards).
+export const hookScoringRubric: ScoringCriterion[] = [
+  {
+    key: "memorability",
+    label: "Memorability",
+    description: "Can a stranger recall it after a single listen?",
+  },
+  {
+    key: "simplicity",
+    label: "Simplicity",
+    description: "Is it lean enough to land instantly, with nothing wasted?",
+  },
+  {
+    key: "emotion",
+    label: "Emotional Impact",
+    description: "Does it carry a clear, genuine feeling?",
+  },
+  {
+    key: "singability",
+    label: "Singability",
+    description: "Is it easy and satisfying for anyone to sing back?",
+  },
+  {
+    key: "originality",
+    label: "Originality",
+    description: "Does it feel fresh rather than borrowed or generic?",
+  },
+  {
+    key: "placement",
+    label: "Placement Potential",
+    description: "Would it work in sync, radio, or a key moment of the record?",
+  },
+];
+
+// Eight hook disciplines. References cite real songs by title/artist only —
+// never reproducing copyrighted lyrics or melodies.
+export const hookStyles: HookStyle[] = [
+  {
+    id: "title",
+    name: "Title Hook",
+    definition: "The song title used as the central, repeated memorable phrase.",
+    purpose: "Makes the song easy to remember and identify.",
+    examples: [
+      "Billie Jean — Michael Jackson",
+      "Purple Rain — Prince",
+      "Rolling in the Deep — Adele",
+    ],
+    drill: "Write 10 possible titles around one emotion.",
+    scoring: ["Memorability", "Simplicity", "Placement Potential"],
+  },
+  {
+    id: "melodic",
+    name: "Melodic Hook",
+    definition: "A short, memorable melody that sticks after one listen.",
+    purpose: "Gives the listener something to sing.",
+    examples: [
+      "Yesterday — The Beatles",
+      "Blinding Lights — The Weeknd",
+      "Sweet Child O' Mine — Guns N' Roses",
+    ],
+    drill: "Write a 4-note motif and repeat it three ways.",
+    scoring: ["Memorability", "Singability", "Originality"],
+  },
+  {
+    id: "rhythmic",
+    name: "Rhythmic Hook",
+    definition: "A memorable rhythm or groove pattern.",
+    purpose: "Makes the song physically memorable.",
+    examples: [
+      "Superstition — Stevie Wonder",
+      "We Will Rock You — Queen",
+      "Billie Jean — Michael Jackson",
+    ],
+    drill: "Tap a rhythm, then write a phrase that matches it.",
+    scoring: ["Memorability", "Singability", "Placement Potential"],
+  },
+  {
+    id: "lyrical",
+    name: "Lyrical Hook",
+    definition: "A phrase, image, or line that carries emotional weight.",
+    purpose: "Makes the listener remember the message.",
+    examples: [
+      "I Will Always Love You — Whitney Houston / Dolly Parton",
+      "Smells Like Teen Spirit — Nirvana",
+    ],
+    drill: "Write 5 emotionally charged one-line phrases.",
+    scoring: ["Emotional Impact", "Memorability", "Originality"],
+  },
+  {
+    id: "vocal-adlib",
+    name: "Vocal Ad-lib Hook",
+    definition: "A repeated vocal sound, run, cry, shout, or phrase.",
+    purpose: "Adds personality and identity to the record.",
+    examples: [
+      "Prince — vocal ad-libs",
+      "James Brown — shouts and grunts",
+      "Michael Jackson — vocal hiccups and 'hee-hee'",
+    ],
+    drill: "Create 5 non-lyrical vocal phrases.",
+    scoring: ["Originality", "Emotional Impact", "Placement Potential"],
+  },
+  {
+    id: "instrumental",
+    name: "Instrumental Hook",
+    definition: "A riff, synth line, bassline, guitar figure, or piano motif.",
+    purpose: "Makes the record recognizable before vocals enter.",
+    examples: [
+      "Smoke on the Water — Deep Purple",
+      "Seven Nation Army — The White Stripes",
+      "Superstition — Stevie Wonder",
+    ],
+    drill: "Write a 2-bar riff or motif.",
+    scoring: ["Memorability", "Originality", "Placement Potential"],
+  },
+  {
+    id: "production",
+    name: "Production Hook",
+    definition: "A unique sound, effect, drop, texture, or sonic signature.",
+    purpose: "Makes the record instantly identifiable.",
+    examples: [
+      "Bad Guy — Billie Eilish",
+      "When Doves Cry — Prince",
+      "In the Air Tonight — Phil Collins",
+    ],
+    drill: "Design one sonic moment that happens before the chorus.",
+    scoring: ["Originality", "Memorability", "Placement Potential"],
+  },
+  {
+    id: "structural",
+    name: "Structural Hook",
+    definition: "A memorable arrangement move — a stop, drop, pause, or section shift.",
+    purpose: "Keeps the listener engaged through the form.",
+    examples: [
+      "Bohemian Rhapsody — Queen",
+      "Uptown Funk — Mark Ronson ft. Bruno Mars",
+      "Hey Ya! — OutKast",
+    ],
+    drill: "Add one surprise transition to a chorus.",
+    scoring: ["Memorability", "Emotional Impact", "Placement Potential"],
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -473,42 +635,121 @@ export const rhymeData: Record<string, RhymeGroup> = {
 // Composition Lab
 // ---------------------------------------------------------------------------
 
-export const compositionCategories = [
-  "Counterpoint",
-  "Fugue",
-  "Reharmonization",
-  "Modal Interchange",
-  "Chromatic Harmony",
-  "Orchestration",
-  "Form & Analysis",
+export const compositionLabs: CompositionLab[] = [
+  {
+    id: "counterpoint",
+    category: "Counterpoint",
+    title: "Two-Part Invention",
+    subtitle: "Write a two-part invention in C major.",
+    steps: [
+      "State a clear subject of one to two measures in the upper voice.",
+      "Answer with the subject in the lower voice while the upper voice supplies a countersubject.",
+      "Develop the material through sequence, inversion, and episodes in related keys.",
+      "Return to C major for a decisive cadence.",
+    ],
+    explanation:
+      "Counterpoint is the discipline of combining independent melodic lines that are each satisfying alone yet coherent together. Favor contrary and oblique motion, prepare and resolve every dissonance, and keep both voices singable from start to finish.",
+    topics: [
+      "Advanced counterpoint",
+      "Passing tones",
+      "Voice leading",
+      "Canon",
+    ],
+  },
+  {
+    id: "fugue",
+    category: "Fugue",
+    title: "Fugue Exposition",
+    subtitle: "Build a subject, answer, countersubject, and episode.",
+    steps: [
+      "Write a short subject with a clear rhythmic identity.",
+      "Answer the subject in the dominant.",
+      "Add a countersubject that works above or below the subject.",
+      "Create a short episode using sequence.",
+    ],
+    explanation:
+      "The fugue extends invertible counterpoint into a complete formal procedure. A strong subject is concise and rhythmically distinct so it stays recognizable when it migrates between voices and keys.",
+    topics: ["Fugue", "Invertible counterpoint", "Sequence", "Episodes"],
+  },
+  {
+    id: "reharmonization",
+    category: "Reharmonization",
+    title: "Reharmonize a Melody",
+    subtitle: "Give one melody three different harmonic treatments.",
+    steps: [
+      "Start with a simple diatonic harmonization.",
+      "Add secondary dominants.",
+      "Add modal interchange or borrowed chords.",
+      "Compare the emotional effect of each version.",
+    ],
+    explanation:
+      "Reharmonization keeps a melody fixed while changing the chords beneath it. The same notes can read as bright, bittersweet, or tense depending on the harmony you place under them — a core tool for arrangers and producers.",
+    topics: ["Secondary dominants", "Modal interchange", "Extended chords"],
+  },
+  {
+    id: "modal-interchange",
+    category: "Modal Interchange",
+    title: "Parallel Key Color Study",
+    subtitle: "Borrow chords from the parallel minor or major.",
+    steps: [
+      "Write a progression in a major key.",
+      "Borrow one chord from the parallel minor.",
+      "Resolve smoothly back to the home key.",
+      "Describe how the borrowed chord changes the mood.",
+    ],
+    explanation:
+      "Modal interchange borrows chords from a parallel mode that shares the same tonic. Pulling iv, bVII, or bVI from the parallel minor adds instant emotional shading without leaving the home key.",
+    topics: ["Modal interchange", "Parallel keys", "Borrowed chords"],
+  },
+  {
+    id: "chromatic-harmony",
+    category: "Chromatic Harmony",
+    title: "Chromatic Expansion",
+    subtitle: "Use color chords without losing musical direction.",
+    steps: [
+      "Begin with a simple tonic-to-dominant progression.",
+      "Add a chromatic mediant or altered dominant.",
+      "Use smooth voice leading between chords.",
+      "Resolve tension clearly.",
+    ],
+    explanation:
+      "Chromatic harmony reaches beyond the diatonic palette for color and tension. The key to keeping it musical is voice leading — connect chromatic chords by the smallest possible motion so the ear follows the line.",
+    topics: ["Chromatic mediants", "Altered dominants", "Voice leading"],
+  },
+  {
+    id: "orchestration",
+    category: "Orchestration",
+    title: "Arrange for Ensemble",
+    subtitle: "Distribute melody, harmony, bass, and color across instruments.",
+    steps: [
+      "Assign the main melody to one instrument.",
+      "Give harmonic support to inner voices.",
+      "Use bass motion to clarify the progression.",
+      "Add color or counter-melody without crowding the texture.",
+    ],
+    explanation:
+      "Orchestration is the art of spacing and color. Each register and timbre has a job; clarity comes from keeping roles distinct and resisting the urge to fill every available space.",
+    topics: ["Orchestration", "Pedal harmony", "Planing", "Counter-melody"],
+  },
+  {
+    id: "form-analysis",
+    category: "Form & Analysis",
+    title: "Analyze Musical Form",
+    subtitle: "Map sections, motives, contrast, and return.",
+    steps: [
+      "Identify the primary theme or motive.",
+      "Mark contrasting sections.",
+      "Track how the material develops.",
+      "Explain how the piece returns or resolves.",
+    ],
+    explanation:
+      "Form is the architecture that organizes contrast and return. Analyzing how a piece states, departs from, and recalls its material trains you to build large structures that feel inevitable.",
+    topics: ["Form & analysis", "Motivic development", "Symmetrical harmony"],
+  },
 ];
 
-export const compositionAssignment = {
-  title: "Two-Part Invention",
-  description: "Write a two-part invention in C major.",
-  details: [
-    "State a clear subject of one to two measures in the upper voice.",
-    "Answer with the subject in the lower voice while the upper voice supplies a countersubject.",
-    "Develop the material through sequence, inversion, and episodes in related keys.",
-    "Return to C major for a decisive cadence. Maintain two independent, singable lines throughout.",
-  ],
-  topics: [
-    "Advanced counterpoint",
-    "Parallel keys",
-    "Extended chords",
-    "Unorthodox harmony",
-    "Passing tones",
-    "Voice leading",
-    "Fugue",
-    "Canon",
-    "Modal interchange",
-    "Non-functional harmony",
-    "Polytonality",
-    "Pedal harmony",
-    "Planing",
-    "Symmetrical harmony",
-  ],
-};
+// Convenience list of lab category labels for the left-hand selector.
+export const compositionCategories = compositionLabs.map((lab) => lab.category);
 
 // ---------------------------------------------------------------------------
 // Song Vault
