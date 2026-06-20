@@ -6,10 +6,9 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/Card";
 import { RhymeList } from "@/components/RhymeList";
 import { Tabs } from "@/components/Tabs";
+import { FadeIn } from "@/components/Motion";
 import { ExampleBadge } from "@/components/EmptyState";
-import { rhymeData } from "@/lib/mockData";
-import { deriveRhymes } from "@/lib/rhymeGen";
-import { askAI } from "@/lib/aiClient";
+import { getRhymes } from "@/lib/rhymeProvider";
 import { getStorage, setStorage } from "@/lib/storage";
 import type { RhymeGroup } from "@/lib/types";
 
@@ -24,48 +23,38 @@ export default function RhymeVaultPage() {
   const [group, setGroup] = useState<RhymeGroup | null>(null);
   const [source, setSource] = useState<Source>("dictionary");
   const [generating, setGenerating] = useState(false);
-  const [aiText, setAiText] = useState<string | null>(null);
-  const cache = useRef<Record<string, RhymeGroup>>({});
+  const cache = useRef<Record<string, { source: Source; rhymes: RhymeGroup }>>({});
 
-  // Restore previously generated rhymes (persistent user workspace).
+  // Restore previously looked-up rhymes (persistent user workspace).
   useEffect(() => {
-    const saved = getStorage<Record<string, RhymeGroup>>("rhyme-vault-generated");
+    const saved = getStorage<Record<string, { source: Source; rhymes: RhymeGroup }>>(
+      "rhyme-vault-cache"
+    );
     if (saved) cache.current = saved;
   }, []);
 
+  // All lookups go through the getRhymes() provider → /api/rhymes.
   const lookup = async (raw: string) => {
     const word = raw.trim().toLowerCase();
     if (!word) return;
     setActive(word);
-    setAiText(null);
 
-    // 1) Curated dictionary
-    if (rhymeData[word]) {
-      setGroup(rhymeData[word]);
-      setSource("dictionary");
-      return;
-    }
-    // 2) Previously generated (cached)
     if (cache.current[word]) {
-      setGroup(cache.current[word]);
-      setSource("generated");
+      setGroup(cache.current[word].rhymes);
+      setSource(cache.current[word].source);
       return;
     }
-    // 3) Generate now (AI-first, local fallback) — never a dead end.
+
     setGroup(null);
     setGenerating(true);
-    setSource("generated");
-
-    const local = deriveRhymes(word);
-    const ai = await askAI(
-      `Give rhymes for the word "${word}" grouped as perfect, near, multisyllabic, and slant. Keep it concise.`,
-      "Songwriting"
-    );
-    if (ai) setAiText(ai);
-
-    cache.current = { ...cache.current, [word]: local };
-    setStorage("rhyme-vault-generated", cache.current);
-    setGroup(local);
+    const result = await getRhymes(word);
+    cache.current = {
+      ...cache.current,
+      [word]: { source: result.source, rhymes: result.rhymes },
+    };
+    setStorage("rhyme-vault-cache", cache.current);
+    setGroup(result.rhymes);
+    setSource(result.source);
     setGenerating(false);
   };
 
@@ -163,17 +152,7 @@ export default function RhymeVaultPage() {
                 No local results found. Generating suggestions…
               </div>
             ) : group ? (
-              <>
-                {aiText && (
-                  <div className="mb-4 rounded-lg border border-brass/30 bg-brass/5 p-4">
-                    <p className="label-caps mb-1 flex items-center gap-1.5 text-brass">
-                      <Sparkles className="h-3.5 w-3.5" /> AI suggestions
-                    </p>
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink">
-                      {aiText}
-                    </p>
-                  </div>
-                )}
+              <FadeIn motionKey={active}>
                 <Tabs tabs={TABS}>
                   {(tab) => (
                     <>
@@ -194,7 +173,7 @@ export default function RhymeVaultPage() {
                     </>
                   )}
                 </Tabs>
-              </>
+              </FadeIn>
             ) : null}
           </>
         )}
