@@ -7,6 +7,28 @@
   --foreground: #1f1f1f;
 }
 
+/* Subtle fade + upward motion when lesson content changes (conservatory feel). */
+@keyframes lessonIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-lesson {
+  animation: lessonIn 220ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-lesson {
+    animation: none;
+  }
+}
+
 html,
 body {
   max-width: 100vw;
