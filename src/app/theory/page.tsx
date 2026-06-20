@@ -9,6 +9,7 @@ import {
   NotebookPen,
   Check,
   X,
+  CheckCircle2,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, SectionTitle } from "@/components/Card";
@@ -17,7 +18,13 @@ import { PianoKeyboard } from "@/components/PianoKeyboard";
 import { curriculumUnits } from "@/lib/mockData";
 import { theoryCurriculum, theorySectionOrder } from "@/lib/theoryCurriculum";
 import { getStorage, setStorage } from "@/lib/storage";
-import { markSubtopicComplete } from "@/lib/theoryProgress";
+import {
+  categoryProgress,
+  getCompletedSubtopics,
+  markSubtopicVisited,
+  subtopicKey,
+  toggleSubtopicComplete,
+} from "@/lib/theoryProgress";
 import { logActivity } from "@/lib/activity";
 
 const CATEGORY_KEY = "theory-active-category";
@@ -31,8 +38,11 @@ export default function TheoryPage() {
   );
   const [showQuiz, setShowQuiz] = useState(false);
   const [answers, setAnswers] = useState<Record<number, number>>({});
+  // Real learning progress (persisted): which subtopics are completed/visited.
+  const [completed, setCompleted] = useState<string[]>([]);
+  const [visited, setVisited] = useState<string[]>([]);
 
-  // Restore the last-selected category + subtopic.
+  // Restore the last-selected category + subtopic, plus progress.
   useEffect(() => {
     const savedCat = getStorage<string>(CATEGORY_KEY);
     const cat = savedCat && theoryCurriculum[savedCat] ? savedCat : DEFAULT_CATEGORY;
@@ -43,6 +53,8 @@ export default function TheoryPage() {
         : theoryCurriculum[cat].subtopics[0].id;
     setActiveCategory(cat);
     setActiveSubtopic(sub);
+    setCompleted(getCompletedSubtopics());
+    setVisited(markSubtopicVisited(cat, sub));
   }, []);
 
   const resetQuiz = () => {
@@ -57,12 +69,14 @@ export default function TheoryPage() {
     setActiveSubtopic(first);
     setStorage(CATEGORY_KEY, id);
     setStorage(SUBTOPIC_KEY, first);
+    setVisited(markSubtopicVisited(id, first));
     resetQuiz();
   };
 
   const selectSubtopic = (id: string) => {
     setActiveSubtopic(id);
     setStorage(SUBTOPIC_KEY, id);
+    setVisited(markSubtopicVisited(activeCategory, id));
     resetQuiz();
   };
 
@@ -71,13 +85,14 @@ export default function TheoryPage() {
     category.subtopics.find((s) => s.id === activeSubtopic) ?? category.subtopics[0];
   const unitMeta = curriculumUnits.find((u) => u.id === activeCategory);
 
-  // Mark the subtopic complete once all its quiz questions are answered.
-  useEffect(() => {
-    if (subtopic.quiz.length > 0 && Object.keys(answers).length >= subtopic.quiz.length) {
-      markSubtopicComplete(activeCategory, activeSubtopic);
-      logActivity();
-    }
-  }, [answers, activeCategory, activeSubtopic, subtopic.quiz.length]);
+  const activeKey = subtopicKey(activeCategory, activeSubtopic);
+  const isComplete = completed.includes(activeKey);
+
+  const toggleComplete = () => {
+    const next = toggleSubtopicComplete(activeCategory, activeSubtopic);
+    setCompleted(next);
+    if (next.includes(activeKey)) logActivity();
+  };
 
   return (
     <div>
@@ -96,6 +111,7 @@ export default function TheoryPage() {
             const cat = theoryCurriculum[id];
             if (!unit || !cat) return null;
             const active = id === activeCategory;
+            const pct = categoryProgress(id, completed);
             return (
               <button
                 key={id}
@@ -106,12 +122,12 @@ export default function TheoryPage() {
               >
                 <div className="flex items-center justify-between">
                   <span className="font-serif text-base text-ink">{unit.title}</span>
-                  <span className="text-xs text-brass">{unit.progress}%</span>
+                  <span className="text-xs text-brass">{pct}%</span>
                 </div>
                 <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-sand">
                   <div
-                    className="h-full rounded-full bg-brass"
-                    style={{ width: `${unit.progress}%` }}
+                    className="h-full rounded-full bg-brass transition-all duration-500"
+                    style={{ width: `${pct}%` }}
                   />
                 </div>
               </button>
@@ -128,16 +144,23 @@ export default function TheoryPage() {
             <div className="mt-4 flex flex-wrap gap-2">
               {category.subtopics.map((s) => {
                 const active = s.id === activeSubtopic;
+                const done = completed.includes(subtopicKey(activeCategory, s.id));
+                const seen = visited.includes(subtopicKey(activeCategory, s.id));
                 return (
                   <button
                     key={s.id}
                     onClick={() => selectSubtopic(s.id)}
-                    className={`rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
                       active
                         ? "border-brass bg-brass/15 font-medium text-ink"
-                        : "border-line bg-white/60 text-muted hover:border-brass/50 hover:text-ink"
+                        : done
+                          ? "border-success/40 bg-success/10 text-ink"
+                          : seen
+                            ? "border-line bg-white/60 text-ink hover:border-brass/50"
+                            : "border-line bg-white/60 text-muted hover:border-brass/50 hover:text-ink"
                     }`}
                   >
+                    {done && <CheckCircle2 className="h-3.5 w-3.5 text-success" />}
                     {s.title}
                   </button>
                 );
@@ -240,6 +263,17 @@ export default function TheoryPage() {
                 <button className="btn-ghost">
                   <NotebookPen className="h-4 w-4" />
                   Add to Notebook
+                </button>
+                <button
+                  onClick={toggleComplete}
+                  className={
+                    isComplete
+                      ? "inline-flex items-center justify-center gap-2 rounded-lg border border-success/40 bg-success/10 px-4 py-2.5 text-sm font-medium text-success transition-colors hover:bg-success/15"
+                      : "btn-brass"
+                  }
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  {isComplete ? "Completed" : "Mark Complete"}
                 </button>
               </div>
 
