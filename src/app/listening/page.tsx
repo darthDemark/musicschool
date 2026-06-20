@@ -1,19 +1,43 @@
 "use client";
 
-import { useState } from "react";
-import { HelpCircle, Target } from "lucide-react";
+import { useEffect, useState } from "react";
+import { HelpCircle, Target, Headphones } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, SectionTitle } from "@/components/Card";
 import { SongCard } from "@/components/SongCard";
 import { YouTubeEmbed } from "@/components/YouTubeEmbed";
 import { NotebookPanel } from "@/components/NotebookPanel";
 import { Tabs } from "@/components/Tabs";
+import { EmptyState } from "@/components/EmptyState";
 import { featuredListening, listeningCollections } from "@/lib/mockData";
+import { getStorage, setStorage } from "@/lib/storage";
+import { logActivity } from "@/lib/activity";
 
 export default function ListeningPage() {
-  const [activeId, setActiveId] = useState(listeningCollections[0].id);
-  const active =
-    listeningCollections.find((t) => t.id === activeId) ?? listeningCollections[0];
+  // No assignment is chosen by default — the user picks one.
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const saved = getStorage<string>("listening-current-id");
+    if (saved && listeningCollections.some((t) => t.id === saved)) setActiveId(saved);
+  }, []);
+
+  const active = listeningCollections.find((t) => t.id === activeId) ?? null;
+
+  const selectTrack = (id: string) => {
+    setActiveId(id);
+    const track = listeningCollections.find((t) => t.id === id);
+    if (track) {
+      setStorage("listening-current-id", id);
+      setStorage("listening-current", {
+        title: track.title,
+        artist: track.artist,
+        focus: track.focus,
+        youtubeId: track.youtubeId,
+      });
+      logActivity();
+    }
+  };
 
   return (
     <div>
@@ -26,6 +50,14 @@ export default function ListeningPage() {
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
         {/* Featured / player */}
         <div className="space-y-6">
+          {!active ? (
+            <EmptyState
+              icon={Headphones}
+              title="Choose a listening assignment"
+              description="Pick a track from the collections to start a guided listening session — with a mission, focus, and notes."
+            />
+          ) : (
+            <>
           <Card>
             <div className="flex flex-wrap items-center gap-2">
               <span className="chip">
@@ -33,9 +65,7 @@ export default function ListeningPage() {
                 Featured Assignment
               </span>
             </div>
-            <h2 className="mt-3 font-serif text-3xl text-ink">
-              {active.id === featuredListening.youtubeId ? active.title : active.title}
-            </h2>
+            <h2 className="mt-3 font-serif text-3xl text-ink">{active.title}</h2>
             <p className="mt-1 text-sm text-muted">{active.artist}</p>
 
             <div className="mt-4">
@@ -98,6 +128,8 @@ export default function ListeningPage() {
               )}
             </Tabs>
           </Card>
+            </>
+          )}
         </div>
 
         {/* Collection list */}
@@ -108,7 +140,7 @@ export default function ListeningPage() {
               key={track.id}
               track={track}
               active={track.id === activeId}
-              onSelect={() => setActiveId(track.id)}
+              onSelect={() => selectTrack(track.id)}
             />
           ))}
           <div className="flex items-start gap-2 rounded-lg border border-line bg-sand/40 p-4 text-xs text-muted">
