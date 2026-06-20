@@ -37,22 +37,34 @@ const CONTEXT_ADDENDA: Record<string, string> = {
     "Focus on ear training: intervals, chord qualities, cadences, scale degrees, rhythm dictation, melodic dictation.",
 };
 
+const LEVEL_ADDENDA: Record<string, string> = {
+  Beginner:
+    "Teach at a BEGINNER level: assume no prior knowledge, define every term, use simple analogies, and keep it short and encouraging.",
+  Intermediate:
+    "Teach at an INTERMEDIATE level: assume basic theory knowledge, use correct terminology, and include a practical example.",
+  Advanced:
+    "Teach at an ADVANCED level: assume strong theory fluency, be rigorous and concise, and reference repertoire or edge cases where useful.",
+};
+
 export async function POST(request: Request) {
   let messages: ChatMessage[] = [];
   let context = "";
+  let level = "";
 
   try {
     const body = await request.json();
     messages = Array.isArray(body?.messages) ? body.messages : [];
     context = typeof body?.context === "string" ? body.context : "";
+    level = typeof body?.level === "string" ? body.level : "";
   } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
   const contextAddendum = CONTEXT_ADDENDA[context] ?? "";
-  const systemPrompt = contextAddendum
-    ? `${BASE_SYSTEM_PROMPT}\n\n${contextAddendum}`
-    : BASE_SYSTEM_PROMPT;
+  const levelAddendum = LEVEL_ADDENDA[level] ?? "";
+  const systemPrompt = [BASE_SYSTEM_PROMPT, contextAddendum, levelAddendum]
+    .filter(Boolean)
+    .join("\n\n");
 
   const lastUser = [...messages].reverse().find((m) => m.role === "user");
   const userText = lastUser?.content ?? "";

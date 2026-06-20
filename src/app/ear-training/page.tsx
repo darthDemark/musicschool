@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Play,
   RotateCcw,
@@ -10,233 +10,167 @@ import {
   Check,
   X,
   Trophy,
+  Eye,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, SectionTitle } from "@/components/Card";
+import { FadeIn } from "@/components/Motion";
 import { PianoKeyboard } from "@/components/PianoKeyboard";
-import { playInterval } from "@/lib/audioEngine";
 import { earTrainingModules } from "@/lib/mockData";
 import { getStorage, setStorage } from "@/lib/storage";
+import {
+  DISCIPLINE_TITLES,
+  makeQuestion,
+  makeSingBack,
+  midiName,
+  type Discipline,
+  type ETQuestion,
+  type SingBackPhrase,
+} from "@/lib/earTraining";
 
-// ---------------------------------------------------------------------------
-// Interval catalogue (all 12)
-// ---------------------------------------------------------------------------
+type Stats = { score: number; total: number; streak: number };
+type AllStats = Record<string, Stats>;
 
-const INTERVALS = [
-  {
-    name: "Minor 2nd",
-    semitones: 1,
-    hint: "Half step — sounds like Jaws approaching. Very dissonant and tense.",
-  },
-  {
-    name: "Major 2nd",
-    semitones: 2,
-    hint: "Whole step — the opening interval of Happy Birthday.",
-  },
-  {
-    name: "Minor 3rd",
-    semitones: 3,
-    hint: "The opening riff of Smoke on the Water. Slightly sad, close.",
-  },
-  {
-    name: "Major 3rd",
-    semitones: 4,
-    hint: "Bright and major — When the Saints Go Marching In opens with this.",
-  },
-  {
-    name: "Perfect 4th",
-    semitones: 5,
-    hint: "Here Comes the Bride. Open, stable, the 'wedding march' interval.",
-  },
-  {
-    name: "Tritone",
-    semitones: 6,
-    hint: "The Simpsons theme, or the opening of Maria (West Side Story). Tense, ambiguous.",
-  },
-  {
-    name: "Perfect 5th",
-    semitones: 7,
-    hint: "Star Wars main theme. Open, hollow, powerful.",
-  },
-  {
-    name: "Minor 6th",
-    semitones: 8,
-    hint: "The Love Story theme. Slightly melancholic with a wide leap.",
-  },
-  {
-    name: "Major 6th",
-    semitones: 9,
-    hint: "My Bonnie Lies Over the Ocean. Bright and warm.",
-  },
-  {
-    name: "Minor 7th",
-    semitones: 10,
-    hint: "There's a Place for Us (Somewhere). Wide, yearning, slightly tense.",
-  },
-  {
-    name: "Major 7th",
-    semitones: 11,
-    hint: "Take On Me second phrase. Very wide and tense — almost an octave.",
-  },
-  {
-    name: "Octave",
-    semitones: 12,
-    hint: "Somewhere Over the Rainbow opening. Wide, pure, and complete.",
-  },
-];
-
-// ---------------------------------------------------------------------------
-// Question generation
-// ---------------------------------------------------------------------------
-
-interface Question {
-  correct: (typeof INTERVALS)[number];
-  root: number;
-  options: (typeof INTERVALS)[number][];
-}
-
-function randomRoot(): number {
-  // C3–G3 (MIDI 48–55) so the upper note stays within C3–C5
-  return 48 + Math.floor(Math.random() * 8);
-}
-
-function shuffle<T>(arr: T[]): T[] {
-  return [...arr].sort(() => Math.random() - 0.5);
-}
-
-function generateQuestion(): Question {
-  const correct = INTERVALS[Math.floor(Math.random() * INTERVALS.length)];
-  const root = randomRoot();
-  const others = shuffle(INTERVALS.filter((i) => i.name !== correct.name)).slice(0, 3);
-  const options = shuffle([...others, correct]);
-  return { correct, root, options };
-}
-
-// ---------------------------------------------------------------------------
-// Persistence shape
-// ---------------------------------------------------------------------------
-
-interface EarTrainingState {
-  score: number;
-  total: number;
-  streak: number;
-}
-
-// ---------------------------------------------------------------------------
-// Page
-// ---------------------------------------------------------------------------
+const EMPTY: Stats = { score: 0, total: 0, streak: 0 };
 
 export default function EarTrainingPage() {
-  const [question, setQuestion] = useState<Question>(generateQuestion);
+  const [discipline, setDiscipline] = useState<Discipline>("intervals");
+  const [stats, setStats] = useState<AllStats>({});
+  const [question, setQuestion] = useState<ETQuestion>(() => makeQuestion("intervals"));
+  const [phrase, setPhrase] = useState<SingBackPhrase>(() => makeSingBack());
   const [selected, setSelected] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);
   const [showHint, setShowHint] = useState(false);
-  const [score, setScore] = useState(0);
-  const [total, setTotal] = useState(0);
-  const [streak, setStreak] = useState(0);
-  const [activeNotes, setActiveNotes] = useState<number[]>([]);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
+  const [round, setRound] = useState(0);
 
-  // Load persisted progress on mount
+  // Restore active discipline + per-discipline stats.
   useEffect(() => {
-    const saved = getStorage<EarTrainingState>("ear-training");
-    if (saved) {
-      setScore(saved.score ?? 0);
-      setTotal(saved.total ?? 0);
-      setStreak(saved.streak ?? 0);
+    const savedDisc = getStorage<Discipline>("ear-training-discipline");
+    const savedStats = getStorage<AllStats>("ear-training-stats");
+    if (savedStats) setStats(savedStats);
+    if (savedDisc && DISCIPLINE_TITLES[savedDisc]) {
+      setDiscipline(savedDisc);
+      if (savedDisc === "singback") setPhrase(makeSingBack());
+      else setQuestion(makeQuestion(savedDisc));
     }
   }, []);
 
-  const playCurrentInterval = useCallback(() => {
-    if (isPlaying) return;
-    const { root, correct } = question;
-    const upper = root + correct.semitones;
-    const dur = 0.85;
+  const cur = stats[discipline] ?? EMPTY;
 
-    setIsPlaying(true);
-    setActiveNotes([root]);
+  const saveStats = (next: AllStats) => {
+    setStats(next);
+    setStorage("ear-training-stats", next);
+  };
 
-    setTimeout(() => {
-      setActiveNotes([upper]);
-      setTimeout(() => {
-        setActiveNotes([]);
-        setIsPlaying(false);
-      }, dur * 1000 + 100);
-    }, (dur + 0.1) * 1000);
+  const selectDiscipline = (id: Discipline) => {
+    setDiscipline(id);
+    setStorage("ear-training-discipline", id);
+    setSelected(null);
+    setRevealed(false);
+    setShowHint(false);
+    setShowNotes(false);
+    if (id === "singback") setPhrase(makeSingBack());
+    else setQuestion(makeQuestion(id));
+    setRound((r) => r + 1);
+  };
 
-    playInterval(root, correct.semitones, true, dur);
-  }, [question, isPlaying]);
-
-  // Auto-play when a new question loads
+  // Auto-play each new multiple-choice question.
   useEffect(() => {
-    const t = setTimeout(playCurrentInterval, 400);
+    if (discipline === "singback") return;
+    const t = setTimeout(() => question.play(), 350);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [question]);
+  }, [round]);
 
   const choose = (name: string) => {
     if (revealed) return;
     setSelected(name);
     setRevealed(true);
-
-    const correct = name === question.correct.name;
-    const ns = correct ? score + 1 : score;
-    const nt = total + 1;
-    const nk = correct ? streak + 1 : 0;
-
-    setScore(ns);
-    setTotal(nt);
-    setStreak(nk);
-    setStorage<EarTrainingState>("ear-training", { score: ns, total: nt, streak: nk });
+    const correct = name === question.answer;
+    const next: AllStats = {
+      ...stats,
+      [discipline]: {
+        score: cur.score + (correct ? 1 : 0),
+        total: cur.total + 1,
+        streak: correct ? cur.streak + 1 : 0,
+      },
+    };
+    saveStats(next);
   };
 
-  const next = () => {
+  const nextQuestion = () => {
     setSelected(null);
     setRevealed(false);
     setShowHint(false);
-    setActiveNotes([]);
-    setIsPlaying(false);
-    setQuestion(generateQuestion());
+    setShowNotes(false);
+    setQuestion(makeQuestion(discipline));
+    setRound((r) => r + 1);
   };
 
-  const accuracy = total > 0 ? Math.round((score / total) * 100) : 0;
-  const rootName = `${["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"][question.root % 12]}${Math.floor(question.root / 12) - 1}`;
+  const rateSingBack = (matched: boolean) => {
+    const next: AllStats = {
+      ...stats,
+      [discipline]: {
+        score: cur.score + (matched ? 1 : 0),
+        total: cur.total + 1,
+        streak: matched ? cur.streak + 1 : 0,
+      },
+    };
+    saveStats(next);
+    setShowNotes(false);
+    setPhrase(makeSingBack());
+  };
+
+  const accuracy = cur.total > 0 ? Math.round((cur.score / cur.total) * 100) : 0;
+  const activeNotes =
+    discipline === "singback"
+      ? showNotes
+        ? phrase.notes
+        : []
+      : revealed || showNotes
+        ? question.notes
+        : [];
 
   return (
     <div>
       <PageHeader
         eyebrow="Ear Training"
         title="The Ear Gym"
-        subtitle="Focused, repeatable drills to sharpen interval, chord, and rhythmic recognition."
+        subtitle="Focused, repeatable drills to sharpen interval, chord, rhythmic, and melodic recognition."
       />
 
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-        {/* Sidebar: modules + session stats */}
+        {/* Disciplines (clickable) + session stats */}
         <aside className="space-y-3">
           <p className="label-caps mb-2">Disciplines</p>
           {earTrainingModules.map((mod) => {
-            const displayAcc =
-              mod.id === "intervals" && total > 0 ? accuracy : mod.accuracy;
+            const active = mod.id === discipline;
+            const s = stats[mod.id] ?? EMPTY;
+            const acc = s.total > 0 ? Math.round((s.score / s.total) * 100) : mod.accuracy;
             return (
-              <div
+              <button
                 key={mod.id}
-                className={`card p-4 ${mod.active ? "ring-2 ring-brass/50" : ""}`}
+                onClick={() => selectDiscipline(mod.id as Discipline)}
+                className={`card w-full p-4 text-left transition-all hover:shadow-card-hover ${
+                  active ? "ring-2 ring-brass/50" : ""
+                }`}
               >
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-ink">{mod.label}</span>
-                  <span className="font-serif text-sm text-brass">{displayAcc}%</span>
+                  <span className="font-serif text-sm text-brass">{acc}%</span>
                 </div>
                 <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-sand">
                   <div
                     className="h-full rounded-full bg-success transition-all duration-500"
-                    style={{ width: `${displayAcc}%` }}
+                    style={{ width: `${acc}%` }}
                   />
                 </div>
-              </div>
+              </button>
             );
           })}
 
-          {total > 0 && (
+          {cur.total > 0 && (
             <div className="card p-4">
               <div className="mb-2 flex items-center gap-2">
                 <Trophy className="h-4 w-4 text-brass" />
@@ -246,7 +180,7 @@ export default function EarTrainingPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-muted">Correct</span>
                   <span className="font-serif text-success">
-                    {score}/{total}
+                    {cur.score}/{cur.total}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -257,7 +191,7 @@ export default function EarTrainingPage() {
                   <span className="text-muted">Streak</span>
                   <span className="flex items-center gap-1 font-serif text-amber">
                     <Flame className="h-3.5 w-3.5" />
-                    {streak}
+                    {cur.streak}
                   </span>
                 </div>
               </div>
@@ -268,134 +202,219 @@ export default function EarTrainingPage() {
         {/* Exercise area */}
         <div className="space-y-6">
           <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="label-caps text-brass">Current Exercise</p>
-                <SectionTitle className="mt-1">Interval Identification</SectionTitle>
+            <FadeIn motionKey={discipline}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="label-caps text-brass">Current Exercise</p>
+                  <SectionTitle className="mt-1">
+                    {DISCIPLINE_TITLES[discipline]}
+                  </SectionTitle>
+                </div>
+                <div className="flex items-center gap-2 rounded-lg border border-amber/30 bg-amber/10 px-3 py-2">
+                  <Flame className="h-4 w-4 text-amber" />
+                  <span className="font-serif text-lg text-ink">{cur.streak}</span>
+                  <span className="label-caps">Streak</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2 rounded-lg border border-amber/30 bg-amber/10 px-3 py-2">
-                <Flame className="h-4 w-4 text-amber" />
-                <span className="font-serif text-lg text-ink">{streak}</span>
-                <span className="label-caps">Streak</span>
+
+              {discipline === "singback" ? (
+                <SingBack
+                  phrase={phrase}
+                  showNotes={showNotes}
+                  onReveal={() => setShowNotes(true)}
+                  onRate={rateSingBack}
+                />
+              ) : (
+                <MultipleChoice
+                  question={question}
+                  selected={selected}
+                  revealed={revealed}
+                  showHint={showHint}
+                  onChoose={choose}
+                  onToggleHint={() => setShowHint((h) => !h)}
+                  onReplay={() => question.play()}
+                  onNext={nextQuestion}
+                />
+              )}
+
+              {/* Piano keyboard — shared visual reference */}
+              <div className="mt-6">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="label-caps">Visual Reference</p>
+                  {discipline !== "rhythm" && !revealed && discipline !== "singback" && (
+                    <button
+                      onClick={() => setShowNotes((s) => !s)}
+                      className="flex items-center gap-1 text-xs text-muted transition-colors hover:text-ink"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      {showNotes ? "Hide notes" : "Show notes"}
+                    </button>
+                  )}
+                </div>
+                <PianoKeyboard activeNotes={activeNotes} startMidi={48} endMidi={72} />
+                {activeNotes.length > 0 && (
+                  <p className="mt-1.5 text-xs text-muted">
+                    {activeNotes.map(midiName).join(" · ")}
+                  </p>
+                )}
               </div>
-            </div>
-
-            {/* Play area */}
-            <div className="mt-6 flex items-center gap-4 rounded-xl2 border border-line bg-charcoal p-5">
-              <button
-                onClick={playCurrentInterval}
-                disabled={isPlaying}
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-brass text-charcoal transition-transform hover:scale-105 disabled:opacity-60"
-              >
-                <Play className="h-6 w-6" />
-              </button>
-              <div className="flex-1">
-                <p className="font-serif text-base text-ivory/90">
-                  {revealed ? question.correct.name : "Identify the interval…"}
-                </p>
-                <p className="mt-0.5 text-xs text-white/45">
-                  Root: {rootName}
-                </p>
-              </div>
-              {/* Decorative waveform */}
-              <div className="flex h-10 items-center gap-[2px] overflow-hidden opacity-70">
-                {Array.from({ length: 32 }).map((_, i) => (
-                  <span
-                    key={i}
-                    className={`w-[2px] shrink-0 rounded-full transition-all ${
-                      isPlaying ? "bg-brass" : "bg-white/30"
-                    }`}
-                    style={{
-                      height: `${20 + Math.abs(Math.sin(i * 0.65)) * 80}%`,
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <p className="mt-5 text-center text-sm text-muted">
-              Press play, listen carefully, then choose the correct answer below.
-            </p>
-
-            {/* Answer choices */}
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              {question.options.map((opt) => {
-                const isAnswer = opt.name === question.correct.name;
-                const isChosen = opt.name === selected;
-                let cls =
-                  "border-line bg-white/60 text-ink hover:border-brass hover:bg-brass/5 cursor-pointer";
-                if (revealed && isAnswer)
-                  cls = "border-success bg-success/10 text-ink cursor-default";
-                else if (revealed && isChosen && !isAnswer)
-                  cls = "border-burgundy bg-burgundy/10 text-burgundy cursor-default";
-                else if (revealed)
-                  cls = "border-line bg-white/40 text-muted cursor-default opacity-70";
-                return (
-                  <button
-                    key={opt.name}
-                    onClick={() => choose(opt.name)}
-                    disabled={revealed}
-                    className={`flex items-center justify-between rounded-lg border px-4 py-3.5 text-sm font-medium transition-colors ${cls}`}
-                  >
-                    {opt.name}
-                    {revealed && isAnswer && (
-                      <Check className="h-4 w-4 shrink-0 text-success" />
-                    )}
-                    {revealed && isChosen && !isAnswer && (
-                      <X className="h-4 w-4 shrink-0 text-burgundy" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Hint */}
-            {showHint && (
-              <div className="mt-4 flex gap-2.5 rounded-lg border border-amber/30 bg-amber/10 p-4 text-sm text-ink">
-                <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-amber" />
-                <span>{question.correct.hint}</span>
-              </div>
-            )}
-
-            {/* Piano keyboard — highlights the two notes of the interval */}
-            <div className="mt-6">
-              <p className="label-caps mb-2">Visual Reference</p>
-              <PianoKeyboard
-                activeNotes={activeNotes}
-                startMidi={48}
-                endMidi={72}
-              />
-            </div>
-
-            {/* Controls */}
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              <button
-                onClick={() => setShowHint((h) => !h)}
-                className="btn-ghost"
-              >
-                <Lightbulb className="h-4 w-4" />
-                {showHint ? "Hide Hint" : "Hint"}
-              </button>
-              <button
-                onClick={playCurrentInterval}
-                disabled={isPlaying}
-                className="btn-ghost"
-              >
-                <RotateCcw className="h-4 w-4" />
-                Hear Again
-              </button>
-              <button
-                onClick={next}
-                disabled={!revealed}
-                className="btn-primary ml-auto"
-              >
-                Next
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
+            </FadeIn>
           </Card>
         </div>
       </div>
     </div>
+  );
+}
+
+function MultipleChoice({
+  question,
+  selected,
+  revealed,
+  showHint,
+  onChoose,
+  onToggleHint,
+  onReplay,
+  onNext,
+}: {
+  question: ETQuestion;
+  selected: string | null;
+  revealed: boolean;
+  showHint: boolean;
+  onChoose: (name: string) => void;
+  onToggleHint: () => void;
+  onReplay: () => void;
+  onNext: () => void;
+}) {
+  return (
+    <>
+      <div className="mt-6 flex items-center gap-4 rounded-xl2 border border-line bg-charcoal p-5">
+        <button
+          onClick={onReplay}
+          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-brass text-charcoal transition-transform hover:scale-105"
+        >
+          <Play className="h-6 w-6" />
+        </button>
+        <div className="flex-1">
+          <p className="font-serif text-base text-ivory/90">{question.prompt}…</p>
+          <p className="mt-0.5 text-xs text-white/45">
+            Press play, listen, then choose your answer.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        {question.options.map((opt) => {
+          const isAnswer = opt === question.answer;
+          const isChosen = opt === selected;
+          let cls =
+            "border-line bg-white/60 text-ink hover:border-brass hover:bg-brass/5 cursor-pointer";
+          if (revealed && isAnswer)
+            cls = "border-success bg-success/10 text-ink cursor-default";
+          else if (revealed && isChosen && !isAnswer)
+            cls = "border-burgundy bg-burgundy/10 text-burgundy cursor-default";
+          else if (revealed)
+            cls = "border-line bg-white/40 text-muted cursor-default opacity-70";
+          return (
+            <button
+              key={opt}
+              onClick={() => onChoose(opt)}
+              disabled={revealed}
+              className={`flex items-center justify-between rounded-lg border px-4 py-3.5 text-sm font-medium transition-colors ${cls}`}
+            >
+              {opt}
+              {revealed && isAnswer && <Check className="h-4 w-4 shrink-0 text-success" />}
+              {revealed && isChosen && !isAnswer && (
+                <X className="h-4 w-4 shrink-0 text-burgundy" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {showHint && (
+        <div className="mt-4 flex gap-2.5 rounded-lg border border-amber/30 bg-amber/10 p-4 text-sm text-ink">
+          <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-amber" />
+          <span>{question.hint}</span>
+        </div>
+      )}
+
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        <button onClick={onToggleHint} className="btn-ghost">
+          <Lightbulb className="h-4 w-4" />
+          {showHint ? "Hide Hint" : "Hint"}
+        </button>
+        <button onClick={onReplay} className="btn-ghost">
+          <RotateCcw className="h-4 w-4" />
+          Hear Again
+        </button>
+        <button onClick={onNext} disabled={!revealed} className="btn-primary ml-auto">
+          Next
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+    </>
+  );
+}
+
+function SingBack({
+  phrase,
+  showNotes,
+  onReveal,
+  onRate,
+}: {
+  phrase: SingBackPhrase;
+  showNotes: boolean;
+  onReveal: () => void;
+  onRate: (matched: boolean) => void;
+}) {
+  return (
+    <>
+      <div className="mt-6 flex items-center gap-4 rounded-xl2 border border-line bg-charcoal p-5">
+        <button
+          onClick={phrase.play}
+          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-brass text-charcoal transition-transform hover:scale-105"
+        >
+          <Play className="h-6 w-6" />
+        </button>
+        <div className="flex-1">
+          <p className="font-serif text-base text-ivory/90">
+            Call &amp; response — sing the phrase back
+          </p>
+          <p className="mt-0.5 text-xs text-white/45">
+            Listen, sing it back, then reveal to check yourself.
+          </p>
+        </div>
+      </div>
+
+      {showNotes && (
+        <div className="mt-4 rounded-lg border border-success/30 bg-success/10 p-4 text-sm text-ink">
+          Phrase: <span className="font-serif">{phrase.label}</span>
+        </div>
+      )}
+
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        <button onClick={phrase.play} className="btn-ghost">
+          <RotateCcw className="h-4 w-4" />
+          Hear Again
+        </button>
+        {!showNotes ? (
+          <button onClick={onReveal} className="btn-primary ml-auto">
+            <Eye className="h-4 w-4" />
+            Show Answer
+          </button>
+        ) : (
+          <div className="ml-auto flex gap-2">
+            <button onClick={() => onRate(false)} className="btn-ghost">
+              <X className="h-4 w-4" />
+              Missed it
+            </button>
+            <button onClick={() => onRate(true)} className="btn-primary">
+              <Check className="h-4 w-4" />
+              I matched it
+            </button>
+          </div>
+        )}
+      </div>
+    </>
   );
 }

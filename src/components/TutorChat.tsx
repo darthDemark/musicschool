@@ -10,6 +10,8 @@ import type { ChatMessage } from "@/lib/types";
 interface TutorChatProps {
   /** Active lesson context forwarded to the API. */
   context?: string;
+  /** Difficulty level forwarded to the API (Beginner/Intermediate/Advanced). */
+  level?: string;
 }
 
 const CONTEXT_PROMPTS: Record<string, string[]> = {
@@ -57,7 +59,7 @@ const CONTEXT_PROMPTS: Record<string, string[]> = {
   ],
 };
 
-export function TutorChat({ context }: TutorChatProps) {
+export function TutorChat({ context, level }: TutorChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     const saved = getStorage<ChatMessage[]>("tutor-session");
     return saved && saved.length > 0
@@ -102,7 +104,7 @@ export function TutorChat({ context }: TutorChatProps) {
       const res = await fetch("/api/tutor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: nextMessages, context }),
+        body: JSON.stringify({ messages: nextMessages, context, level }),
       });
       const data = await res.json();
       const updated: ChatMessage[] = [

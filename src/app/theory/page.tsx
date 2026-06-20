@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, SectionTitle } from "@/components/Card";
+import { FadeIn } from "@/components/Motion";
 import { PianoKeyboard } from "@/components/PianoKeyboard";
 import { curriculumUnits } from "@/lib/mockData";
 import { theoryCurriculum, theorySectionOrder } from "@/lib/theoryCurriculum";
@@ -136,10 +137,7 @@ export default function TheoryPage() {
 
           {/* Lesson — fully driven by the selected subtopic (animated on change) */}
           <Card>
-            <div
-              key={`${activeCategory}-${activeSubtopic}`}
-              className="animate-lesson"
-            >
+            <FadeIn motionKey={`${activeCategory}-${activeSubtopic}`}>
               <div className="flex items-center gap-2 text-brass">
                 <BookOpen className="h-4 w-4" />
                 <p className="label-caps text-brass">
@@ -280,7 +278,7 @@ export default function TheoryPage() {
                   })}
                 </div>
               )}
-            </div>
+            </FadeIn>
           </Card>
         </div>
       </div>

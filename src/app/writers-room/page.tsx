@@ -8,6 +8,7 @@ import {
   Download,
   Check,
   PenLine,
+  Trash2,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/Card";
@@ -112,6 +113,20 @@ export default function WritersRoomPage() {
     setTimeout(() => setSavedFlash(false), 1600);
   };
 
+  const deleteProject = () => {
+    if (!active) return;
+    const remaining = projects.filter((p) => p.id !== active.id);
+    if (remaining.length === 0) {
+      // Never leave the studio empty — start a fresh blank project.
+      const np = blankProject("Untitled 1");
+      setProjects([np]);
+      setActiveId(np.id);
+    } else {
+      setProjects(remaining);
+      setActiveId(remaining[0].id);
+    }
+  };
+
   const exportNotes = () => {
     if (!active) return;
     const md = projectToMarkdown(active);
@@ -159,6 +174,13 @@ export default function WritersRoomPage() {
             <button onClick={exportNotes} className="btn-ghost">
               <Download className="h-4 w-4" />
               Export Notes
+            </button>
+            <button
+              onClick={deleteProject}
+              className="btn-ghost text-burgundy hover:bg-burgundy/5"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete
             </button>
           </div>
         }
