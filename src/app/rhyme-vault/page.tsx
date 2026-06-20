@@ -1,42 +1,84 @@
 "use client";
 
-import { useState } from "react";
-import { Search, BookOpen } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Search, BookOpen, Loader2, Sparkles } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/Card";
 import { RhymeList } from "@/components/RhymeList";
 import { Tabs } from "@/components/Tabs";
+import { ExampleBadge } from "@/components/EmptyState";
 import { rhymeData } from "@/lib/mockData";
+import { deriveRhymes } from "@/lib/rhymeGen";
+import { askAI } from "@/lib/aiClient";
+import { getStorage, setStorage } from "@/lib/storage";
 import type { RhymeGroup } from "@/lib/types";
 
 const TABS = ["Perfect", "Near", "Multi-Syllable", "Slant", "All"];
+const EXAMPLE_WORDS = ["fire", "love", "night", "pain", "desire", "heart", "soul", "danger"];
 
-const DEMO_WORDS = ["fire", "love", "night", "pain", "desire", "heart", "soul", "danger"];
+type Source = "dictionary" | "generated";
 
 export default function RhymeVaultPage() {
-  const [query, setQuery] = useState("fire");
-  const [active, setActive] = useState("fire");
+  const [query, setQuery] = useState("");
+  const [active, setActive] = useState("");
+  const [group, setGroup] = useState<RhymeGroup | null>(null);
+  const [source, setSource] = useState<Source>("dictionary");
+  const [generating, setGenerating] = useState(false);
+  const [aiText, setAiText] = useState<string | null>(null);
+  const cache = useRef<Record<string, RhymeGroup>>({});
 
-  const group: RhymeGroup | undefined = rhymeData[active.toLowerCase()];
+  // Restore previously generated rhymes (persistent user workspace).
+  useEffect(() => {
+    const saved = getStorage<Record<string, RhymeGroup>>("rhyme-vault-generated");
+    if (saved) cache.current = saved;
+  }, []);
+
+  const lookup = async (raw: string) => {
+    const word = raw.trim().toLowerCase();
+    if (!word) return;
+    setActive(word);
+    setAiText(null);
+
+    // 1) Curated dictionary
+    if (rhymeData[word]) {
+      setGroup(rhymeData[word]);
+      setSource("dictionary");
+      return;
+    }
+    // 2) Previously generated (cached)
+    if (cache.current[word]) {
+      setGroup(cache.current[word]);
+      setSource("generated");
+      return;
+    }
+    // 3) Generate now (AI-first, local fallback) — never a dead end.
+    setGroup(null);
+    setGenerating(true);
+    setSource("generated");
+
+    const local = deriveRhymes(word);
+    const ai = await askAI(
+      `Give rhymes for the word "${word}" grouped as perfect, near, multisyllabic, and slant. Keep it concise.`,
+      "Songwriting"
+    );
+    if (ai) setAiText(ai);
+
+    cache.current = { ...cache.current, [word]: local };
+    setStorage("rhyme-vault-generated", cache.current);
+    setGroup(local);
+    setGenerating(false);
+  };
 
   const totalRhymes = group
-    ? group.perfect.length +
-      group.near.length +
-      group.multi.length +
-      group.slant.length
+    ? group.perfect.length + group.near.length + group.multi.length + group.slant.length
     : 0;
-
-  const search = () => {
-    const key = query.trim().toLowerCase();
-    setActive(key);
-  };
 
   return (
     <div>
       <PageHeader
         eyebrow="Rhyme Vault"
         title="Rhyming Dictionary"
-        subtitle="Expand your lyric vocabulary — perfect, near, multisyllabic, and slant rhymes."
+        subtitle="Expand your lyric vocabulary — perfect, near, multisyllabic, and slant rhymes for any word."
       />
 
       <Card className="mb-6">
@@ -46,26 +88,28 @@ export default function RhymeVaultPage() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && search()}
-              placeholder="Search a word…"
+              onKeyDown={(e) => e.key === "Enter" && lookup(query)}
+              placeholder="Search any word…"
               className="w-full rounded-lg border border-line bg-white/60 py-2.5 pl-10 pr-4 text-sm text-ink outline-none placeholder:text-muted/60 focus:border-brass focus:ring-1 focus:ring-brass/30"
             />
           </div>
-          <button onClick={search} className="btn-primary">
+          <button onClick={() => lookup(query)} className="btn-primary">
             Search
           </button>
         </div>
 
-        {/* Demo word chips */}
+        {/* Example words */}
         <div className="mt-4">
-          <p className="label-caps mb-2">Demo words</p>
+          <p className="label-caps mb-2 flex items-center gap-2">
+            Example words <ExampleBadge />
+          </p>
           <div className="flex flex-wrap gap-2">
-            {DEMO_WORDS.map((w) => (
+            {EXAMPLE_WORDS.map((w) => (
               <button
                 key={w}
                 onClick={() => {
                   setQuery(w);
-                  setActive(w);
+                  lookup(w);
                 }}
                 className={`rounded-full border px-3 py-1 text-sm transition-colors ${
                   active === w
@@ -81,83 +125,78 @@ export default function RhymeVaultPage() {
       </Card>
 
       <Card>
-        <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <BookOpen className="h-4 w-4 text-brass" />
-            <p className="label-caps">
-              Rhymes for{" "}
-              <span className="text-burgundy">&ldquo;{active}&rdquo;</span>
-            </p>
-          </div>
-          {group && (
-            <span className="rounded-full bg-sand px-2.5 py-0.5 font-mono text-xs text-muted">
-              {totalRhymes} words
-            </span>
-          )}
-        </div>
-
-        {!group ? (
-          <div className="py-8 text-center">
-            <p className="text-sm text-muted">
-              No entries for &ldquo;{active}&rdquo; in the local dictionary.
-            </p>
-            <p className="mt-2 text-xs text-muted/70">
-              Try one of the demo words above. In production this queries a
-              rhyming API or the rhyme_entries database table.
+        {!active ? (
+          <div className="py-10 text-center">
+            <BookOpen className="mx-auto mb-3 h-8 w-8 text-line" />
+            <p className="font-serif text-lg text-ink">Search a word to begin</p>
+            <p className="mt-1 text-sm text-muted">
+              Type any word above — if it isn&apos;t in the dictionary, we&apos;ll
+              generate rhyme suggestions for it.
             </p>
           </div>
         ) : (
-          <Tabs tabs={TABS}>
-            {(tab) => (
+          <>
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-brass" />
+                <p className="label-caps">
+                  Rhymes for{" "}
+                  <span className="text-burgundy">&ldquo;{active}&rdquo;</span>
+                </p>
+                {source === "generated" && !generating && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-brass">
+                    <Sparkles className="h-3 w-3" />
+                    Generated
+                  </span>
+                )}
+              </div>
+              {group && !generating && (
+                <span className="rounded-full bg-sand px-2.5 py-0.5 font-mono text-xs text-muted">
+                  {totalRhymes} words
+                </span>
+              )}
+            </div>
+
+            {generating ? (
+              <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted">
+                <Loader2 className="h-4 w-4 animate-spin text-brass" />
+                No local results found. Generating suggestions…
+              </div>
+            ) : group ? (
               <>
-                {tab === "Perfect" && (
-                  <>
-                    <p className="mb-3 text-xs text-muted">
-                      Perfect rhymes share the same vowel-consonant ending.
+                {aiText && (
+                  <div className="mb-4 rounded-lg border border-brass/30 bg-brass/5 p-4">
+                    <p className="label-caps mb-1 flex items-center gap-1.5 text-brass">
+                      <Sparkles className="h-3.5 w-3.5" /> AI suggestions
                     </p>
-                    <RhymeList words={group.perfect} />
-                  </>
-                )}
-                {tab === "Near" && (
-                  <>
-                    <p className="mb-3 text-xs text-muted">
-                      Near rhymes share a similar but not identical sound —
-                      modern and conversational.
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink">
+                      {aiText}
                     </p>
-                    <RhymeList words={group.near} />
-                  </>
+                  </div>
                 )}
-                {tab === "Multi-Syllable" && (
-                  <>
-                    <p className="mb-3 text-xs text-muted">
-                      Phrases that end with a rhyming sound — add rhythmic
-                      density to lyrics.
-                    </p>
-                    <RhymeList words={group.multi} />
-                  </>
-                )}
-                {tab === "Slant" && (
-                  <>
-                    <p className="mb-3 text-xs text-muted">
-                      Slant rhymes share some sounds but not all — keep
-                      listeners slightly off-balance.
-                    </p>
-                    <RhymeList words={group.slant} />
-                  </>
-                )}
-                {tab === "All" && (
-                  <RhymeList
-                    words={[
-                      ...group.perfect,
-                      ...group.near,
-                      ...group.multi,
-                      ...group.slant,
-                    ]}
-                  />
-                )}
+                <Tabs tabs={TABS}>
+                  {(tab) => (
+                    <>
+                      {tab === "Perfect" && <RhymeList words={group.perfect} />}
+                      {tab === "Near" && <RhymeList words={group.near} />}
+                      {tab === "Multi-Syllable" && <RhymeList words={group.multi} />}
+                      {tab === "Slant" && <RhymeList words={group.slant} />}
+                      {tab === "All" && (
+                        <RhymeList
+                          words={[
+                            ...group.perfect,
+                            ...group.near,
+                            ...group.multi,
+                            ...group.slant,
+                          ]}
+                        />
+                      )}
+                    </>
+                  )}
+                </Tabs>
               </>
-            )}
-          </Tabs>
+            ) : null}
+          </>
         )}
       </Card>
     </div>

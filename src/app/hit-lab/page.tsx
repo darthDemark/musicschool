@@ -11,6 +11,7 @@ import {
   KeyRound,
   History,
   Trash2,
+  FlaskConical,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, SectionTitle } from "@/components/Card";
@@ -20,8 +21,10 @@ import { HookMap } from "@/components/HookMap";
 import { EnergyCurve } from "@/components/EnergyCurve";
 import { GenomeRadar } from "@/components/GenomeScore";
 import { Tabs } from "@/components/Tabs";
-import { analyzeSong, extractYouTubeId } from "@/lib/youtube";
+import { EmptyState, ExampleBadge } from "@/components/EmptyState";
+import { analyzeSong, extractYouTubeId, generateMockReport } from "@/lib/youtube";
 import { purpleRainReport } from "@/lib/mockData";
+import { askAI } from "@/lib/aiClient";
 import { getStorage, setStorage } from "@/lib/storage";
 import type { HitLabReport } from "@/lib/types";
 
@@ -58,51 +61,78 @@ function BulletList({ items }: { items: string[] }) {
 }
 
 export default function HitLabPage() {
-  const [report, setReport] = useState<HitLabReport>(purpleRainReport);
-  const [url, setUrl] = useState("https://www.youtube.com/watch?v=TvnYmWpD_T8");
+  // No hardcoded default — start empty and invite the user to analyze a song.
+  const [report, setReport] = useState<HitLabReport | null>(null);
+  const [isExample, setIsExample] = useState(false);
+  const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [savedReports, setSavedReports] = useState<SavedReport[]>([]);
   const [showHistory, setShowHistory] = useState(false);
 
-  // Load saved reports from localStorage
+  // Restore the user's most recent analysis if one exists.
   useEffect(() => {
     const saved = getStorage<SavedReport[]>("hit-lab-reports");
-    if (saved) setSavedReports(saved);
+    if (saved && saved.length > 0) {
+      setSavedReports(saved);
+      setReport(saved[0].report);
+      setUrl(saved[0].url);
+    }
   }, []);
 
-  const handleAnalyze = () => {
+  const persist = (entry: SavedReport) => {
+    const updated = [
+      entry,
+      ...savedReports.filter((r) => r.videoId !== entry.videoId),
+    ].slice(0, 10);
+    setSavedReports(updated);
+    setStorage("hit-lab-reports", updated);
+  };
+
+  const handleAnalyze = async () => {
     setError(null);
+    if (!url.trim()) {
+      setError("Paste a YouTube link to analyze a song.");
+      return;
+    }
     const videoId = extractYouTubeId(url);
     if (!videoId) {
-      setError("Please paste a valid YouTube link (e.g. youtube.com/watch?v=...).");
+      setError("Please enter a valid YouTube link.");
       return;
     }
     setAnalyzing(true);
-    setTimeout(() => {
-      const newReport = analyzeSong(videoId);
-      setReport(newReport);
-      setAnalyzing(false);
+    setIsExample(false);
 
-      // Save to localStorage (keep last 10 reports)
-      const entry: SavedReport = {
-        url,
-        videoId,
-        analyzedAt: new Date().toLocaleDateString(),
-        report: newReport,
-      };
-      const updated = [
-        entry,
-        ...savedReports.filter((r) => r.videoId !== videoId),
-      ].slice(0, 10);
-      setSavedReports(updated);
-      setStorage("hit-lab-reports", updated);
-    }, 900);
+    // Dynamic, per-video report. If an AI key is configured, enrich the overview.
+    const base = generateMockReport(url, videoId);
+    const ai = await askAI(
+      `In 2-3 sentences, write an educational overview of the song craft of the YouTube video ${url} (structure, hooks, arrangement). Do not reproduce lyrics.`,
+      "Hit Lab"
+    );
+    const newReport: HitLabReport = ai ? { ...base, overview: ai } : base;
+
+    setReport(newReport);
+    persist({
+      url,
+      videoId,
+      analyzedAt: new Date().toLocaleDateString(),
+      report: newReport,
+    });
+    setAnalyzing(false);
+    setShowHistory(false);
+  };
+
+  const loadExample = () => {
+    setReport(analyzeSong(purpleRainReport.youtubeId));
+    setUrl("https://www.youtube.com/watch?v=" + purpleRainReport.youtubeId);
+    setIsExample(true);
+    setError(null);
   };
 
   const loadReport = (saved: SavedReport) => {
     setUrl(saved.url);
     setReport(saved.report);
+    setIsExample(false);
     setShowHistory(false);
   };
 
@@ -131,23 +161,16 @@ export default function HitLabPage() {
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAnalyze()}
-              placeholder="https://www.youtube.com/watch?v=..."
+              placeholder="https://www.youtube.com/watch?v=... · youtu.be/... · /shorts/..."
               className="w-full rounded-lg border border-line bg-white/60 py-2.5 pl-10 pr-4 text-sm text-ink outline-none placeholder:text-muted/60 focus:border-brass focus:ring-1 focus:ring-brass/30"
             />
           </div>
-          <button
-            onClick={handleAnalyze}
-            disabled={analyzing}
-            className="btn-primary"
-          >
+          <button onClick={handleAnalyze} disabled={analyzing} className="btn-primary">
             <Sparkles className="h-4 w-4" />
             {analyzing ? "Analyzing…" : "Analyze Song"}
           </button>
           {savedReports.length > 0 && (
-            <button
-              onClick={() => setShowHistory((h) => !h)}
-              className="btn-ghost"
-            >
+            <button onClick={() => setShowHistory((h) => !h)} className="btn-ghost">
               <History className="h-4 w-4" />
               History ({savedReports.length})
             </button>
@@ -170,7 +193,7 @@ export default function HitLabPage() {
         {/* History panel */}
         {showHistory && (
           <div className="mt-4 rounded-lg border border-line bg-sand/40 p-4">
-            <p className="label-caps mb-3">Recent Reports</p>
+            <p className="label-caps mb-3">Your Reports</p>
             <div className="space-y-2">
               {savedReports.map((r) => (
                 <button
@@ -199,124 +222,134 @@ export default function HitLabPage() {
         )}
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        {/* Main analysis */}
-        <div className="space-y-6">
-          <Card>
-            <Tabs tabs={ANALYSIS_TABS}>
-              {(tab) => (
-                <>
-                  {tab === "Overview" && (
-                    <div className="space-y-4">
-                      <SectionTitle>Overview</SectionTitle>
-                      <p className="text-[15px] leading-relaxed text-ink">
-                        {report.overview}
-                      </p>
-                    </div>
-                  )}
-                  {tab === "Structure Timeline" && (
-                    <div>
-                      <SectionTitle className="mb-4">
-                        Structure Timeline
-                      </SectionTitle>
-                      <Timeline segments={report.structure} />
-                    </div>
-                  )}
-                  {tab === "Hook Map" && (
-                    <div>
-                      <SectionTitle className="mb-4">Hook Map</SectionTitle>
-                      <HookMap hooks={report.hookMap} />
-                    </div>
-                  )}
-                  {tab === "Energy Curve" && (
-                    <div>
-                      <SectionTitle className="mb-4">Energy Curve</SectionTitle>
-                      <EnergyCurve data={report.energyCurve} />
-                    </div>
-                  )}
-                  {tab === "Harmony Analysis" && (
-                    <div>
-                      <SectionTitle className="mb-4">
-                        Harmony Analysis
-                      </SectionTitle>
-                      <BulletList items={report.harmony} />
-                    </div>
-                  )}
-                  {tab === "Melody Analysis" && (
-                    <div>
-                      <SectionTitle className="mb-4">
-                        Melody Analysis
-                      </SectionTitle>
-                      <BulletList items={report.melody} />
-                    </div>
-                  )}
-                  {tab === "Lyrics & Theme" && (
-                    <div>
-                      <SectionTitle className="mb-4">Lyrics & Theme</SectionTitle>
-                      <BulletList items={report.lyricsTheme} />
-                      <p className="mt-4 text-xs text-muted">
-                        Note: we store thematic and structural commentary only —
-                        never full copyrighted lyrics.
-                      </p>
-                    </div>
-                  )}
-                  {tab === "Arrangement" && (
-                    <div>
-                      <SectionTitle className="mb-4">Arrangement</SectionTitle>
-                      <BulletList items={report.arrangement} />
-                    </div>
-                  )}
-                  {tab === "Song Genome" && (
-                    <div>
-                      <SectionTitle className="mb-4">Song Genome</SectionTitle>
-                      <GenomeRadar scores={report.genome} />
-                      <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2">
-                        {report.genome.map((g) => (
-                          <div
-                            key={g.label}
-                            className="flex items-center justify-between border-b border-line/60 py-1.5 text-sm"
-                          >
-                            <span className="text-muted">{g.label}</span>
-                            <span className="font-serif text-burgundy">
-                              {g.value.toFixed(1)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </Tabs>
-          </Card>
-        </div>
-
-        {/* Sidebar */}
-        <aside className="space-y-6">
-          <YouTubeEmbed videoId={report.youtubeId} title={report.song} />
-
-          <Card>
-            <SectionTitle className="mb-1">Song Overview</SectionTitle>
-            <p className="text-sm text-muted">Auto-generated summary</p>
-            <div className="mt-4 space-y-3">
-              <OverviewRow icon={Music} label="Song" value={report.song} />
-              <OverviewRow icon={Music} label="Artist" value={report.artist} />
-              <OverviewRow icon={Activity} label="Genre" value={report.genre} />
-              <OverviewRow icon={Clock} label="Length" value={report.length} />
-              <OverviewRow
-                icon={Activity}
-                label="BPM estimate"
-                value={report.bpm}
-              />
-              <OverviewRow
-                icon={KeyRound}
-                label="Key estimate"
-                value={report.key}
-              />
+      {/* Empty state — no report yet */}
+      {!report ? (
+        <EmptyState
+          icon={FlaskConical}
+          title="Paste a song to analyze"
+          description="Drop a YouTube link above and the Hit Lab will generate a full educational deconstruction — structure, hook map, energy curve, harmony, melody, and a song genome."
+        >
+          <button onClick={loadExample} className="btn-ghost">
+            View an example analysis
+          </button>
+        </EmptyState>
+      ) : (
+        <>
+          {isExample && (
+            <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber/30 bg-amber/10 px-4 py-2.5">
+              <ExampleBadge />
+              <span className="text-sm text-ink">
+                This is a sample analysis (Prince — Purple Rain). Paste your own
+                link above to replace it.
+              </span>
             </div>
-          </Card>
-        </aside>
-      </div>
+          )}
+          <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+            {/* Main analysis */}
+            <div className="space-y-6">
+              <Card>
+                <Tabs tabs={ANALYSIS_TABS}>
+                  {(tab) => (
+                    <>
+                      {tab === "Overview" && (
+                        <div className="space-y-4">
+                          <SectionTitle>Overview</SectionTitle>
+                          <p className="text-[15px] leading-relaxed text-ink">
+                            {report.overview}
+                          </p>
+                        </div>
+                      )}
+                      {tab === "Structure Timeline" && (
+                        <div>
+                          <SectionTitle className="mb-4">Structure Timeline</SectionTitle>
+                          <Timeline segments={report.structure} />
+                        </div>
+                      )}
+                      {tab === "Hook Map" && (
+                        <div>
+                          <SectionTitle className="mb-4">Hook Map</SectionTitle>
+                          <HookMap hooks={report.hookMap} />
+                        </div>
+                      )}
+                      {tab === "Energy Curve" && (
+                        <div>
+                          <SectionTitle className="mb-4">Energy Curve</SectionTitle>
+                          <EnergyCurve data={report.energyCurve} />
+                        </div>
+                      )}
+                      {tab === "Harmony Analysis" && (
+                        <div>
+                          <SectionTitle className="mb-4">Harmony Analysis</SectionTitle>
+                          <BulletList items={report.harmony} />
+                        </div>
+                      )}
+                      {tab === "Melody Analysis" && (
+                        <div>
+                          <SectionTitle className="mb-4">Melody Analysis</SectionTitle>
+                          <BulletList items={report.melody} />
+                        </div>
+                      )}
+                      {tab === "Lyrics & Theme" && (
+                        <div>
+                          <SectionTitle className="mb-4">Lyrics & Theme</SectionTitle>
+                          <BulletList items={report.lyricsTheme} />
+                          <p className="mt-4 text-xs text-muted">
+                            Note: we store thematic and structural commentary only —
+                            never full copyrighted lyrics.
+                          </p>
+                        </div>
+                      )}
+                      {tab === "Arrangement" && (
+                        <div>
+                          <SectionTitle className="mb-4">Arrangement</SectionTitle>
+                          <BulletList items={report.arrangement} />
+                        </div>
+                      )}
+                      {tab === "Song Genome" && (
+                        <div>
+                          <SectionTitle className="mb-4">Song Genome</SectionTitle>
+                          <GenomeRadar scores={report.genome} />
+                          <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2">
+                            {report.genome.map((g) => (
+                              <div
+                                key={g.label}
+                                className="flex items-center justify-between border-b border-line/60 py-1.5 text-sm"
+                              >
+                                <span className="text-muted">{g.label}</span>
+                                <span className="font-serif text-burgundy">
+                                  {g.value.toFixed(1)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </Tabs>
+              </Card>
+            </div>
+
+            {/* Sidebar */}
+            <aside className="space-y-6">
+              <YouTubeEmbed videoId={report.youtubeId} title={report.song} />
+
+              <Card>
+                <SectionTitle className="mb-1">Song Overview</SectionTitle>
+                <p className="text-sm text-muted">Auto-generated summary</p>
+                <div className="mt-4 space-y-3">
+                  <OverviewRow icon={Music} label="Song" value={report.song} />
+                  <OverviewRow icon={Music} label="Artist" value={report.artist} />
+                  <OverviewRow icon={Activity} label="Genre" value={report.genre} />
+                  <OverviewRow icon={Clock} label="Length" value={report.length} />
+                  <OverviewRow icon={Activity} label="BPM estimate" value={report.bpm} />
+                  <OverviewRow icon={KeyRound} label="Key estimate" value={report.key} />
+                </div>
+              </Card>
+            </aside>
+          </div>
+        </>
+      )}
     </div>
   );
 }
