@@ -2,177 +2,195 @@
 
 A premium music education web app for songwriters, producers, composers, vocalists, and serious students of music. Think **Juilliard + Berklee + Hit Songs Deconstructed + Notion + MasterClass** — a private conservatory in your browser.
 
-Built with **Next.js (App Router) · React · TypeScript · Tailwind CSS**. Vercel-ready and Supabase-ready, but runs entirely on local mock data so you can click through the full experience with zero configuration.
+Built with **Next.js 14 (App Router) · React 18 · TypeScript · Tailwind CSS**. Vercel-ready and Supabase-ready, but runs entirely on local data so you can click through the full experience with zero configuration.
 
 ---
 
 ## Features
 
-A warm, scholarly conservatory aesthetic across 14 sections:
+A warm, scholarly conservatory aesthetic across 14 fully interactive sections:
 
 | Section | What it does |
 | --- | --- |
 | **Dashboard** | Daily mission control — continue learning, today's listening & writing assignments, progress. |
-| **Theory Academy** | A premium textbook/course from notation through fugue, with a full "Invertible Counterpoint" lesson. |
-| **Ear Training** | Interactive interval/chord/cadence drills with a waveform visual and streaks. |
+| **Theory Academy** | A premium textbook/course from notation through fugue, with an interactive piano keyboard and audio examples (Web Audio API). |
+| **Ear Training** | 12-interval identification drills with random question generation, scoring, streak tracking, visual piano keyboard, and localStorage persistence. |
 | **Listening Curriculum** | Guided listening with embedded YouTube, listening questions, and notes/analysis tabs. |
-| **Hit Lab** | Paste a YouTube link → educational deconstruction (structure, hook map, energy curve, harmony, melody, genome). |
+| **Hit Lab** | Paste a YouTube link → educational deconstruction with localStorage report history (structure, hook map, energy curve, harmony, melody, genome). |
 | **Song Genome** | Score & compare songs with a radar chart, score bars, and similar songs. |
-| **Hook Lab** | Hook strength training — daily workout, hook builder, recent hooks with scores. |
+| **Hook Lab** | Hook strength training — generate ideas, save to localStorage, star-rate hooks, delete hooks. |
 | **Writer's Room** | Notebook with Lyrics / Themes / Rhymes / Melody / Chords / Notes tabs. |
-| **Rhyme Vault** | Perfect / near / multisyllabic / slant rhymes with favorites. |
-| **Composition Lab** | Counterpoint, fugue, reharmonization labs with notation editor & piano placeholders. |
-| **Song Vault** | Store, filter, and score your own catalog. |
+| **Rhyme Vault** | 8-word local rhyme dictionary (fire, love, night, pain, desire, heart, soul, danger) with perfect / near / multi-syllable / slant tabs. |
+| **Composition Lab** | Functional 16-step × 8-note piano roll sequencer with Web Audio playback, BPM control, save/load exercises, and interactive piano keyboard. |
+| **Song Vault** | Full CRUD — create, edit, delete songs with title, genre, status, scores (hook/melody/lyrics/arrangement), and lyrics/notes. Persisted to localStorage. |
 | **Composer's Library** | Study the harmonic/melodic/arrangement signatures of the masters. |
-| **AI Tutor** | A private mentor chat with suggested prompts, lesson context, and progress panels. |
+| **AI Tutor** | A private mentor chat with 7 lesson contexts (Theory, Counterpoint, Hit Lab, Hook Lab, Songwriting, Composition, Ear Training), suggested prompts, session history, and OpenAI/Anthropic/mock fallback. |
 | **Settings** | Profile, notifications, and integration status. |
-
-### Legal / product guarantees
-
-This app **references** real songs for education but **never downloads, rips, or stores** copyrighted audio, full lyrics, full sheet music, or transcriptions. The Hit Lab stores only: the YouTube URL / video ID, public metadata, your notes, timestamps, and the educational analysis report. Videos are shown via the standard YouTube embed served by YouTube.
 
 ---
 
-## 1. Install dependencies
+## Local Setup
+
+### Prerequisites
+
+- Node.js 18+ (LTS recommended)
+- npm 9+
+
+### Install & run
 
 ```bash
+git clone <repo-url>
+cd music-school
 npm install
-```
-
-Requires Node.js 18.18+ (Node 20+ recommended).
-
-## 2. Run locally
-
-```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The app works fully with mock data — no env vars required.
+Open [http://localhost:3000](http://localhost:3000). The app works fully without any environment variables using local mock data and the browser Web Audio API.
 
-Other scripts:
+### Optional: Connect AI
 
-```bash
-npm run build   # production build (must pass for Vercel)
-npm run start   # serve the production build
-npm run lint    # eslint
-```
-
-## 3. Add environment variables
-
-Copy the example file and fill in only what you need:
+Copy `.env.example` to `.env.local` and add at least one AI key:
 
 ```bash
 cp .env.example .env.local
+# then edit .env.local
 ```
 
-```env
-OPENAI_API_KEY=
-ANTHROPIC_API_KEY=
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-YOUTUBE_API_KEY=
-```
-
-Every variable is optional. Missing keys never break the app — the relevant feature gracefully falls back to mock data.
-
-## 4. Deploy to Vercel
-
-1. Push this repo to GitHub/GitLab/Bitbucket.
-2. Import the project at [vercel.com/new](https://vercel.com/new). Vercel auto-detects Next.js.
-3. (Optional) Add the environment variables above under **Project → Settings → Environment Variables**.
-4. Deploy. The build (`npm run build`) succeeds with no env vars set.
-
-## 5. Future: Supabase setup
-
-The prototype uses `src/lib/mockData.ts`. To go live:
-
-1. `npm install @supabase/supabase-js`
-2. Set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`.
-3. Enable the client in `src/lib/supabase.ts` (the `createClient` block is stubbed and commented).
-4. Create the suggested tables and replace mock reads with queries:
-
-```
-users
-lessons
-lesson_progress
-listening_assignments
-hit_lab_reports
-song_genomes
-hook_entries
-rhyme_entries
-song_vault
-composer_profiles
-ai_tutor_sessions
-```
-
-The TypeScript types in `src/lib/types.ts` mirror these tables to make the swap straightforward.
-
-## 6. Future: AI API setup
-
-The AI Tutor talks to `POST /api/tutor` (`src/app/api/tutor/route.ts`). The route is ready for either provider:
-
-- Set `OPENAI_API_KEY` to use OpenAI Chat Completions, **or**
-- Set `ANTHROPIC_API_KEY` to use the Anthropic Messages API.
-
-If neither key is present, the route returns rich, on-brand **mock** tutor responses (`src/lib/tutorMock.ts`) so the chat always works. A scholarly system prompt is already defined; the tutor is instructed to teach with real references but never reproduce full copyrighted lyrics or sheet music.
-
-## 7. Future: YouTube Data API setup
-
-Hit Lab parses a pasted YouTube link with `extractYouTubeId()` and embeds the video. To enrich it with real metadata:
-
-1. Set `YOUTUBE_API_KEY`.
-2. Wire the YouTube Data API call where indicated in `src/lib/youtube.ts` (`analyzeSong` documents the exact integration points for metadata, AI analysis, and optional user-owned audio analysis).
-
-The app will **never** download or store audio — only the video ID, metadata, and your own analysis.
+If no key is set, the AI Tutor returns rich mock responses — the app never breaks without API keys.
 
 ---
 
-## Project structure
+## Vercel Deployment
+
+1. Push your repository to GitHub/GitLab/Bitbucket.
+2. Import the project at [vercel.com/new](https://vercel.com/new).
+3. Vercel detects Next.js automatically — no framework config needed.
+4. Add any optional environment variables in the Vercel dashboard (Project → Settings → Environment Variables).
+5. Deploy.
+
+**No environment variables are required.** The app deploys and runs fully without them. API keys only unlock live AI responses in the AI Tutor.
+
+---
+
+## AI API Keys
+
+| Variable | Provider | Notes |
+| --- | --- | --- |
+| `OPENAI_API_KEY` | OpenAI | Uses `gpt-4o-mini`. Set this for live AI Tutor responses. |
+| `ANTHROPIC_API_KEY` | Anthropic | Uses `claude-3-5-sonnet-latest`. Fallback if OpenAI key is absent or fails. |
+
+**Fallback order:** OpenAI → Anthropic → Mock responses.
+
+The mock tutor returns pedagogically correct, music-school-toned responses covering theory, counterpoint, hooks, listening, and songwriting — suitable for demos.
+
+---
+
+## Data Persistence
+
+This prototype uses **localStorage** (namespaced under `music-school:`) for:
+
+| Key | Data |
+| --- | --- |
+| `ear-training` | Score, streak, total questions answered |
+| `song-vault` | Full song catalog (CRUD) |
+| `hook-lab` | Saved hook ideas with ratings |
+| `hit-lab-reports` | Last 10 song analysis reports |
+| `composition-lab` | Saved sequencer exercises |
+| `tutor-session` | Last 40 messages of AI Tutor chat |
+
+All data is stored client-side only. Clear browser data to reset.
+
+---
+
+## Audio Engine
+
+The Web Audio API synthesises all sounds dynamically — no MP3 files required. The engine (`src/lib/audioEngine.ts`) supports:
+
+- Single notes (triangle oscillator with ADSR envelope)
+- Intervals (melodic or harmonic)
+- Major / minor triads
+- Dominant 7th, major 7th, minor 7th chords
+- Authentic and plagal cadences
+- Melodies (note sequence at a given BPM)
+- Rhythm patterns (noise-burst clicks)
+
+AudioContext is lazily initialised on first user gesture to comply with browser autoplay policies.
+
+---
+
+## Future: Supabase Connection
+
+To replace localStorage with a real database:
+
+1. Install: `npm install @supabase/supabase-js`
+2. Add env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+3. The `src/lib/supabase.ts` stub is ready for the client.
+4. Replace `src/lib/storage.ts` calls with Supabase queries following the types in `src/lib/types.ts`.
+
+Suggested tables mirror the TypeScript interfaces in `types.ts`: `songs`, `hooks`, `hit_lab_reports`, `ear_training_sessions`, `composition_exercises`, `chat_sessions`.
+
+---
+
+## Future: YouTube Data API
+
+The Hit Lab currently uses mock deconstruction metadata. To upgrade to real metadata:
+
+1. Enable the YouTube Data API v3 in Google Cloud Console.
+2. Add `YOUTUBE_API_KEY` to environment variables.
+3. In `src/lib/youtube.ts`, call `https://www.googleapis.com/youtube/v3/videos?id={videoId}&part=snippet,contentDetails&key={key}` to fetch real title, artist, duration, and thumbnail.
+4. Pass real metadata to the deconstruction engine (or an AI service) for analysis.
+
+**Important:** The Hit Lab never downloads or stores audio. It stores only the video ID, URL, timestamps, and educational analysis text.
+
+---
+
+## Project Structure
 
 ```
 src/
-  app/
-    layout.tsx            # Root layout: fonts, sidebar shell
-    globals.css           # Theme tokens + component classes
-    page.tsx              # Dashboard
-    theory/               # Theory Academy
-    ear-training/
-    listening/
-    hit-lab/
-    song-genome/
-    hook-lab/
-    writers-room/
-    rhyme-vault/
-    composition-lab/
-    song-vault/
-    composers/
-    ai-tutor/
-    settings/
-    api/tutor/route.ts    # AI Tutor endpoint (OpenAI / Anthropic / mock)
-  components/             # Sidebar, PageHeader, StatCard, ProgressRing,
-                         # LessonCard, SongCard, GenomeScore, ScoreBar,
-                         # Timeline, HookMap, EnergyCurve, NotebookPanel,
-                         # YouTubeEmbed, TutorChat, RhymeList,
-                         # ComposerProfile, SongVaultTable, Tabs, Card
-  lib/
-    mockData.ts           # All demo data
-    types.ts              # Domain types (mirror Supabase schema)
-    nav.ts                # Sidebar navigation config
-    youtube.ts            # YouTube ID parsing + mock analyzer
-    tutorMock.ts          # Offline AI tutor brain
-    supabase.ts           # Supabase integration stub
+├── app/                  # Next.js App Router pages + API
+│   ├── api/tutor/        # AI Tutor API route (OpenAI → Anthropic → mock)
+│   ├── ai-tutor/         # AI Tutor page with context selector
+│   ├── composition-lab/  # Piano sequencer + keyboard
+│   ├── ear-training/     # Interval identification drills
+│   ├── hit-lab/          # YouTube song deconstructor
+│   ├── hook-lab/         # Hook generation + localStorage
+│   ├── rhyme-vault/      # Rhyming dictionary
+│   ├── song-vault/       # Song CRUD with localStorage
+│   ├── theory/           # Theory Academy + interactive piano
+│   └── ...               # Other pages
+├── components/           # Reusable UI components
+│   ├── PianoKeyboard.tsx # Interactive piano (C3–C5, Web Audio)
+│   ├── TutorChat.tsx     # AI chat with context + session history
+│   └── ...
+└── lib/
+    ├── audioEngine.ts    # Web Audio API synthesis engine
+    ├── storage.ts        # localStorage utilities (namespaced)
+    ├── mockData.ts       # All demo data
+    ├── types.ts          # TypeScript domain types
+    └── ...
 ```
-
-## Design system
-
-Defined in `tailwind.config.ts` and `globals.css`:
-
-- **Ivory** `#F7F4EE` · **Sand** `#EFE8DC` · **Charcoal** `#111111`
-- **Ink** `#1F1F1F` · **Muted** `#666666` · **Line** `#D8CFC0`
-- **Brass** `#C49B3D` · **Burgundy** `#6D1F2A` · **Success** `#7A9B76` · **Amber** `#B8860B`
-- Serif headlines (Playfair Display) · sans body (Inter)
 
 ---
 
-This is a prototype intended to demonstrate the full experience and architecture. It is not a kids' app — it's a private conservatory for becoming a stronger songwriter, producer, vocalist, and composer.
+## Tech Stack
+
+| Layer | Choice |
+| --- | --- |
+| Framework | Next.js 14 (App Router) |
+| Language | TypeScript (strict) |
+| Styling | Tailwind CSS 3 + custom design tokens |
+| Icons | lucide-react |
+| Charts | recharts |
+| Audio | Browser Web Audio API (no external library) |
+| Data | localStorage (prototype) → Supabase (production) |
+| AI | OpenAI gpt-4o-mini / Anthropic claude-3-5-sonnet / mock |
+
+---
+
+## Legal Notes
+
+- **YouTube embeds** only — no audio download or storage.
+- **Hit Lab** stores video ID, URL, timestamps, and educational text analysis only.
+- **AI Tutor** is instructed never to reproduce full copyrighted lyrics or sheet music — thematic and structural commentary only.
+- Rhyme data and hook ideas are locally generated — no third-party API calls.
