@@ -1,37 +1,249 @@
 "use client";
 
-import { useState } from "react";
-import { Play, Pause, SkipBack, Music2, FileText } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Play,
+  Pause,
+  SkipBack,
+  Square,
+  Music2,
+  FileText,
+  Save,
+  Trash2,
+} from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, SectionTitle } from "@/components/Card";
+import { PianoKeyboard } from "@/components/PianoKeyboard";
+import { playNote, playMelody } from "@/lib/audioEngine";
 import { compositionAssignment, compositionCategories } from "@/lib/mockData";
+import { getStorage, setStorage } from "@/lib/storage";
 
-const WHITE_KEYS = ["C", "D", "E", "F", "G", "A", "B", "C", "D", "E", "F", "G", "A", "B"];
-// Index after which a black key follows (no black key after E and B).
-const BLACK_AFTER = new Set([0, 1, 3, 4, 5, 7, 8, 10, 11, 12]);
+// ---------------------------------------------------------------------------
+// Sequencer config
+// ---------------------------------------------------------------------------
 
-function PianoKeyboard() {
+const STEPS = 16;
+// Notes from top to bottom: C5 → C4 (descending, as on a piano roll)
+const SEQUENCER_NOTES = [72, 71, 69, 67, 65, 64, 62, 60]; // C5 B4 A4 G4 F4 E4 D4 C4
+const NOTE_LABELS = ["C5", "B4", "A4", "G4", "F4", "E4", "D4", "C4"];
+const BPM_OPTIONS = [60, 80, 100, 120, 140, 160];
+
+type Grid = boolean[][]; // [row][col]
+
+function emptyGrid(): Grid {
+  return Array.from({ length: SEQUENCER_NOTES.length }, () =>
+    Array(STEPS).fill(false)
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Saved exercise shape
+// ---------------------------------------------------------------------------
+
+interface SavedExercise {
+  id: string;
+  name: string;
+  grid: Grid;
+  bpm: number;
+  savedAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// Sequencer component
+// ---------------------------------------------------------------------------
+
+function Sequencer({
+  grid,
+  currentStep,
+  onToggle,
+}: {
+  grid: Grid;
+  currentStep: number;
+  onToggle: (row: number, col: number) => void;
+}) {
   return (
-    <div className="relative flex h-32 w-full select-none overflow-hidden rounded-lg border border-line bg-white">
-      {WHITE_KEYS.map((key, i) => (
-        <div
-          key={`${key}-${i}`}
-          className="relative flex flex-1 items-end justify-center border-r border-line pb-2 text-[10px] text-muted transition-colors last:border-r-0 hover:bg-sand"
-        >
-          {key}
-          {BLACK_AFTER.has(i) && (
-            <span className="absolute -right-[7px] top-0 z-10 h-20 w-[14px] rounded-b bg-charcoal" />
-          )}
+    <div className="overflow-x-auto rounded-lg border border-line bg-white">
+      <div className="flex" style={{ minWidth: 560 }}>
+        {/* Row labels */}
+        <div className="flex flex-col border-r border-line">
+          <div className="flex h-7 items-center px-3 border-b border-line/60">
+            <span className="label-caps text-[10px]">Note</span>
+          </div>
+          {NOTE_LABELS.map((label) => (
+            <div
+              key={label}
+              className="flex h-9 items-center border-b border-line/40 px-3 last:border-b-0"
+            >
+              <span className="w-6 font-mono text-[11px] text-muted">{label}</span>
+            </div>
+          ))}
         </div>
-      ))}
+
+        {/* Grid */}
+        <div className="flex flex-1 flex-col">
+          {/* Column headers (beat numbers) */}
+          <div className="flex h-7 border-b border-line/60">
+            {Array.from({ length: STEPS }).map((_, col) => (
+              <div
+                key={col}
+                className={`flex flex-1 items-center justify-center text-[10px] font-mono border-r border-line/30 last:border-r-0 ${
+                  currentStep === col ? "bg-brass/20 text-brass font-bold" : "text-muted/50"
+                }`}
+              >
+                {col % 4 === 0 ? col / 4 + 1 : "·"}
+              </div>
+            ))}
+          </div>
+
+          {/* Rows */}
+          {grid.map((row, rowIdx) => (
+            <div key={rowIdx} className="flex border-b border-line/40 last:border-b-0">
+              {row.map((active, col) => (
+                <button
+                  key={col}
+                  onClick={() => onToggle(rowIdx, col)}
+                  className={`flex h-9 flex-1 border-r border-line/20 last:border-r-0 transition-colors ${
+                    col % 4 === 0 ? "border-l border-l-line/40" : ""
+                  } ${
+                    currentStep === col
+                      ? active
+                        ? "bg-brass"
+                        : "bg-brass/15"
+                      : active
+                        ? "bg-brass/70 hover:bg-brass"
+                        : "hover:bg-sand"
+                  }`}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
 
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
+
 export default function CompositionLabPage() {
   const [category, setCategory] = useState(compositionCategories[0]);
-  const [playing, setPlaying] = useState(false);
   const [showDetails, setShowDetails] = useState(true);
+  const [grid, setGrid] = useState<Grid>(emptyGrid);
+  const [bpm, setBpm] = useState(120);
+  const [playing, setPlaying] = useState(false);
+  const [currentStep, setCurrentStep] = useState(-1);
+  const [savedExercises, setSavedExercises] = useState<SavedExercise[]>([]);
+  const [saveName, setSaveName] = useState("");
+  const [activeKeyNotes, setActiveKeyNotes] = useState<number[]>([]);
+
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const stepRef = useRef(0);
+  const gridRef = useRef(grid);
+  gridRef.current = grid;
+
+  // Load persisted exercises
+  useEffect(() => {
+    const saved = getStorage<SavedExercise[]>("composition-lab");
+    if (saved) setSavedExercises(saved);
+  }, []);
+
+  // Toggle a sequencer cell
+  const toggleCell = (row: number, col: number) => {
+    setGrid((prev) => {
+      const next = prev.map((r) => [...r]);
+      next[row][col] = !next[row][col];
+      return next;
+    });
+  };
+
+  // Playback engine
+  const startPlayback = useCallback(() => {
+    if (playing) return;
+    setPlaying(true);
+    stepRef.current = 0;
+
+    const beatMs = (60 / bpm) * 1000;
+    intervalRef.current = setInterval(() => {
+      const step = stepRef.current % STEPS;
+      setCurrentStep(step);
+
+      // Play all active notes in this column
+      const activeInStep = gridRef.current
+        .map((row, rowIdx) => (row[step] ? SEQUENCER_NOTES[rowIdx] : null))
+        .filter((m): m is number => m !== null);
+
+      activeInStep.forEach((midi) => playNote(midi, beatMs / 1000 * 0.85));
+
+      stepRef.current++;
+    }, beatMs);
+  }, [playing, bpm]);
+
+  const stopPlayback = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    setPlaying(false);
+    setCurrentStep(-1);
+    stepRef.current = 0;
+  }, []);
+
+  const rewind = () => {
+    stopPlayback();
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []);
+
+  const saveExercise = () => {
+    const name = saveName.trim() || `Exercise ${savedExercises.length + 1}`;
+    const newEx: SavedExercise = {
+      id: `ex-${Date.now()}`,
+      name,
+      grid,
+      bpm,
+      savedAt: new Date().toLocaleDateString(),
+    };
+    const next = [newEx, ...savedExercises];
+    setSavedExercises(next);
+    setStorage("composition-lab", next);
+    setSaveName("");
+  };
+
+  const loadExercise = (ex: SavedExercise) => {
+    stopPlayback();
+    setGrid(ex.grid);
+    setBpm(ex.bpm);
+  };
+
+  const deleteExercise = (id: string) => {
+    const next = savedExercises.filter((e) => e.id !== id);
+    setSavedExercises(next);
+    setStorage("composition-lab", next);
+  };
+
+  const clearGrid = () => {
+    stopPlayback();
+    setGrid(emptyGrid());
+  };
+
+  const handleKeyNoteOn = (midi: number) => {
+    setActiveKeyNotes((prev) => [...new Set([...prev, midi])]);
+  };
+  const handleKeyNoteOff = (midi: number) => {
+    setActiveKeyNotes((prev) => prev.filter((m) => m !== midi));
+  };
+
+  // Play a simple C major scale preview
+  const playScalePreview = () => {
+    playMelody([60, 62, 64, 65, 67, 69, 71, 72], bpm);
+  };
 
   return (
     <div>
@@ -59,6 +271,39 @@ export default function CompositionLabPage() {
               {cat}
             </button>
           ))}
+
+          {/* Saved exercises */}
+          {savedExercises.length > 0 && (
+            <div className="mt-4">
+              <p className="label-caps mb-2">Saved</p>
+              <div className="space-y-1.5">
+                {savedExercises.map((ex) => (
+                  <div
+                    key={ex.id}
+                    className="flex items-center justify-between rounded-lg border border-line bg-white/60 px-3 py-2"
+                  >
+                    <button
+                      onClick={() => loadExercise(ex)}
+                      className="min-w-0 flex-1 text-left"
+                    >
+                      <p className="truncate text-xs font-medium text-ink">
+                        {ex.name}
+                      </p>
+                      <p className="text-[10px] text-muted">
+                        {ex.bpm} BPM · {ex.savedAt}
+                      </p>
+                    </button>
+                    <button
+                      onClick={() => deleteExercise(ex.id)}
+                      className="ml-2 text-muted hover:text-burgundy"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </aside>
 
         {/* Workspace */}
@@ -66,7 +311,9 @@ export default function CompositionLabPage() {
           <Card>
             <div className="flex items-start justify-between">
               <div>
-                <p className="label-caps text-brass">Current Assignment • {category}</p>
+                <p className="label-caps text-brass">
+                  Current Assignment • {category}
+                </p>
                 <SectionTitle className="mt-1">
                   {compositionAssignment.title}
                 </SectionTitle>
@@ -79,7 +326,7 @@ export default function CompositionLabPage() {
                 className="btn-ghost"
               >
                 <FileText className="h-4 w-4" />
-                Assignment Details
+                {showDetails ? "Hide" : "Details"}
               </button>
             </div>
 
@@ -94,46 +341,129 @@ export default function CompositionLabPage() {
               </ol>
             )}
 
-            {/* Notation editor placeholder */}
+            {/* Piano keyboard */}
             <div className="mt-6">
-              <p className="label-caps mb-2">Notation Editor</p>
-              <div className="rounded-lg border border-line bg-white">
-                <div className="space-y-6 p-6">
-                  {[0, 1].map((staff) => (
-                    <div
-                      key={staff}
-                      className="h-20 w-full bg-[repeating-linear-gradient(to_bottom,transparent_0,transparent_15px,#D8CFC0_15px,#D8CFC0_16px)] bg-[length:100%_80px] bg-no-repeat"
-                    />
-                  ))}
+              <div className="mb-2 flex items-center justify-between">
+                <p className="label-caps">Keyboard</p>
+                <button
+                  onClick={playScalePreview}
+                  className="rounded px-2 py-1 text-xs text-muted transition-colors hover:text-ink"
+                >
+                  Play scale
+                </button>
+              </div>
+              <PianoKeyboard
+                activeNotes={activeKeyNotes}
+                onNoteOn={handleKeyNoteOn}
+                onNoteOff={handleKeyNoteOff}
+                startMidi={48}
+                endMidi={72}
+              />
+            </div>
+
+            {/* Sequencer (piano roll) */}
+            <div className="mt-6">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                <p className="label-caps">Note Sequencer</p>
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 text-xs text-muted">
+                    BPM
+                    <select
+                      value={bpm}
+                      onChange={(e) => setBpm(Number(e.target.value))}
+                      className="rounded border border-line bg-white/60 px-1.5 py-0.5 text-xs text-ink"
+                    >
+                      {BPM_OPTIONS.map((b) => (
+                        <option key={b}>{b}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    onClick={clearGrid}
+                    className="rounded px-2 py-1 text-xs text-muted transition-colors hover:text-burgundy"
+                  >
+                    <Trash2 className="inline h-3 w-3 mr-1" />
+                    Clear
+                  </button>
                 </div>
               </div>
-              <p className="mt-1 text-xs text-muted">
-                Notation editor placeholder — integrate a music notation library
-                (e.g. VexFlow / OpenSheetMusicDisplay) here.
+
+              <Sequencer
+                grid={grid}
+                currentStep={currentStep}
+                onToggle={toggleCell}
+              />
+
+              <p className="mt-1.5 text-xs text-muted">
+                Click cells to add / remove notes. Press play to hear your
+                sequence loop.
               </p>
             </div>
 
-            {/* Piano keyboard */}
-            <div className="mt-6">
-              <p className="label-caps mb-2">Keyboard</p>
-              <PianoKeyboard />
-            </div>
-
             {/* Playback controls */}
-            <div className="mt-6 flex items-center gap-3 rounded-lg border border-line bg-charcoal p-4">
-              <button className="flex h-10 w-10 items-center justify-center rounded-full text-ivory transition-colors hover:bg-white/10">
+            <div className="mt-5 flex items-center gap-3 rounded-lg border border-line bg-charcoal p-4">
+              <button
+                onClick={rewind}
+                className="flex h-10 w-10 items-center justify-center rounded-full text-ivory/70 transition-colors hover:bg-white/10 hover:text-ivory"
+              >
                 <SkipBack className="h-5 w-5" />
               </button>
+
+              {playing ? (
+                <button
+                  onClick={stopPlayback}
+                  className="flex h-12 w-12 items-center justify-center rounded-full bg-brass text-charcoal transition-transform hover:scale-105"
+                >
+                  <Pause className="h-5 w-5" />
+                </button>
+              ) : (
+                <button
+                  onClick={startPlayback}
+                  className="flex h-12 w-12 items-center justify-center rounded-full bg-brass text-charcoal transition-transform hover:scale-105"
+                >
+                  <Play className="h-5 w-5" />
+                </button>
+              )}
+
               <button
-                onClick={() => setPlaying((p) => !p)}
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-brass text-charcoal transition-transform hover:scale-105"
+                onClick={stopPlayback}
+                className="flex h-10 w-10 items-center justify-center rounded-full text-ivory/70 transition-colors hover:bg-white/10 hover:text-ivory"
               >
-                {playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+                <Square className="h-4 w-4" />
               </button>
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/15">
-                <div className="h-full w-1/3 rounded-full bg-brass" />
+
+              {/* Playhead bar */}
+              <div className="flex h-1.5 flex-1 overflow-hidden rounded-full bg-white/15">
+                {Array.from({ length: STEPS }).map((_, i) => (
+                  <div
+                    key={i}
+                    className={`flex-1 transition-colors ${
+                      i === currentStep ? "bg-brass" : ""
+                    } ${i % 4 === 0 && i !== currentStep ? "bg-white/10" : ""}`}
+                  />
+                ))}
               </div>
-              <span className="text-xs text-white/60">0:12 / 0:36</span>
+
+              <span className="min-w-[56px] text-right text-xs text-white/50">
+                {currentStep >= 0
+                  ? `${currentStep + 1} / ${STEPS}`
+                  : `${bpm} BPM`}
+              </span>
+            </div>
+
+            {/* Save exercise */}
+            <div className="mt-4 flex gap-2">
+              <input
+                value={saveName}
+                onChange={(e) => setSaveName(e.target.value)}
+                placeholder="Exercise name (optional)"
+                className="input flex-1 text-sm"
+                onKeyDown={(e) => e.key === "Enter" && saveExercise()}
+              />
+              <button onClick={saveExercise} className="btn-ghost">
+                <Save className="h-4 w-4" />
+                Save
+              </button>
             </div>
           </Card>
 

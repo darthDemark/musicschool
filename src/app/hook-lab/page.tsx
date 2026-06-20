@@ -1,30 +1,185 @@
 "use client";
 
-import { useState } from "react";
-import { Sparkles, Dumbbell, Check } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  Sparkles,
+  Dumbbell,
+  Check,
+  Trash2,
+  Star,
+  BookmarkPlus,
+} from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, SectionTitle } from "@/components/Card";
-import { hookTypes, hookWorkout, recentHooks } from "@/lib/mockData";
+import { hookTypes, hookWorkout } from "@/lib/mockData";
+import { getStorage, setStorage } from "@/lib/storage";
 
-const generatedIdeas = [
-  "Caught in the undertow",
-  "You're my favorite mistake",
-  "Burning down the quiet",
-  "Hold me like a secret",
-  "Every scar says your name",
-];
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface HookIdea {
+  id: string;
+  text: string;
+  theme: string;
+  emotion: string;
+  hookType: string;
+  score: number;
+  rating: number; // user star rating 0–5
+  savedAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// Mock idea pools (seeded by theme/emotion/type combinations)
+// ---------------------------------------------------------------------------
+
+const IDEA_POOLS: Record<string, string[]> = {
+  danger: [
+    "Caught in the undertow",
+    "Burning down the quiet",
+    "You're the risk I'd take again",
+    "I know better — still I stay",
+    "One touch and the whole thing breaks",
+  ],
+  love: [
+    "You're my favorite mistake",
+    "Hold me like a secret",
+    "Every scar says your name",
+    "Can't stay away from you",
+    "Addicted to everything you are",
+  ],
+  pain: [
+    "Still bleeding at the seams",
+    "You left and I kept counting",
+    "The ache that won't sit still",
+    "Beautiful and breaking",
+    "I wear the wound like gold",
+  ],
+  obsession: [
+    "Danger in your eyes",
+    "One touch, I'm gone",
+    "You're the fire I can't put out",
+    "Midnight in your arms again",
+    "Losing sleep to find you",
+  ],
+  default: [
+    "The moment before it all changed",
+    "We were meant to burn",
+    "Tell me something true",
+    "Light me up one more time",
+    "Gone before the morning comes",
+  ],
+};
+
+function getIdeas(theme: string, emotion: string): string[] {
+  const key = (theme + " " + emotion).toLowerCase();
+  for (const [k, pool] of Object.entries(IDEA_POOLS)) {
+    if (key.includes(k)) return pool;
+  }
+  return IDEA_POOLS.default;
+}
+
+function genScore(): number {
+  return Math.round((6.5 + Math.random() * 3) * 10) / 10;
+}
+
+// ---------------------------------------------------------------------------
+// Score badge
+// ---------------------------------------------------------------------------
+
+function ScoreBadge({ score }: { score: number }) {
+  const cls =
+    score >= 8.5
+      ? "bg-success/15 text-success"
+      : score >= 7.5
+        ? "bg-brass/15 text-brass"
+        : "bg-amber/15 text-amber";
+  return (
+    <span className={`rounded-full px-2.5 py-0.5 font-serif text-xs ${cls}`}>
+      {score.toFixed(1)}
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Star rating
+// ---------------------------------------------------------------------------
+
+function StarRating({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map((s) => (
+        <button
+          key={s}
+          onClick={() => onChange(s === value ? 0 : s)}
+          className={`transition-colors ${
+            s <= value ? "text-amber" : "text-line"
+          } hover:text-amber`}
+        >
+          <Star className="h-3.5 w-3.5 fill-current" />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
 
 export default function HookLabPage() {
   const [theme, setTheme] = useState("");
   const [emotion, setEmotion] = useState("");
   const [hookType, setHookType] = useState(hookTypes[0]);
-  const [ideas, setIdeas] = useState<string[]>([]);
+  const [generatedIdeas, setGeneratedIdeas] = useState<string[]>([]);
+  const [savedHooks, setSavedHooks] = useState<HookIdea[]>([]);
+
+  // Load from localStorage
+  useEffect(() => {
+    const saved = getStorage<HookIdea[]>("hook-lab");
+    if (saved) setSavedHooks(saved);
+  }, []);
+
+  const persist = (next: HookIdea[]) => {
+    setSavedHooks(next);
+    setStorage("hook-lab", next);
+  };
 
   const generate = () => {
-    // Mock generator — in production this would call /api/tutor or a dedicated
-    // generation endpoint seeded with theme/emotion/hookType.
-    setIdeas(generatedIdeas);
+    const ideas = getIdeas(theme, emotion);
+    setGeneratedIdeas(ideas);
   };
+
+  const saveHook = (text: string) => {
+    const newHook: HookIdea = {
+      id: `hook-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      text,
+      theme,
+      emotion,
+      hookType,
+      score: genScore(),
+      rating: 0,
+      savedAt: new Date().toLocaleDateString(),
+    };
+    persist([newHook, ...savedHooks]);
+  };
+
+  const updateRating = (id: string, rating: number) => {
+    persist(savedHooks.map((h) => (h.id === id ? { ...h, rating } : h)));
+  };
+
+  const deleteHook = (id: string) => {
+    persist(savedHooks.filter((h) => h.id !== id));
+  };
+
+  const alreadySaved = (text: string) =>
+    savedHooks.some((h) => h.text === text);
 
   return (
     <div>
@@ -75,38 +230,97 @@ export default function HookLabPage() {
               </div>
             </div>
 
-            {ideas.length > 0 && (
+            {generatedIdeas.length > 0 && (
               <div className="mt-5 space-y-2">
                 <p className="label-caps">Generated Ideas</p>
-                {ideas.map((idea) => (
+                {generatedIdeas.map((idea) => (
                   <div
                     key={idea}
-                    className="flex items-center justify-between rounded-lg border border-line bg-white/60 px-4 py-3"
+                    className="flex items-center justify-between gap-3 rounded-lg border border-line bg-white/60 px-4 py-3"
                   >
-                    <span className="text-sm text-ink">&ldquo;{idea}&rdquo;</span>
-                    <span className="rounded-full bg-brass/15 px-2 py-0.5 font-serif text-xs text-brass">
-                      {(7 + Math.random() * 2).toFixed(1)}
+                    <span className="flex-1 text-sm text-ink">
+                      &ldquo;{idea}&rdquo;
                     </span>
+                    <div className="flex items-center gap-2">
+                      <ScoreBadge score={genScore()} />
+                      <button
+                        onClick={() => saveHook(idea)}
+                        disabled={alreadySaved(idea)}
+                        title={alreadySaved(idea) ? "Already saved" : "Save hook"}
+                        className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-colors ${
+                          alreadySaved(idea)
+                            ? "border-success/30 bg-success/10 text-success"
+                            : "border-line text-muted hover:border-brass hover:text-ink"
+                        }`}
+                      >
+                        {alreadySaved(idea) ? (
+                          <Check className="h-3.5 w-3.5" />
+                        ) : (
+                          <BookmarkPlus className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
             )}
           </Card>
 
-          {/* Recent hooks */}
+          {/* Saved hooks */}
           <Card>
-            <SectionTitle className="mb-4">Recent Hooks</SectionTitle>
-            <div className="space-y-2">
-              {recentHooks.map((hook) => (
-                <div
-                  key={hook.id}
-                  className="flex items-center justify-between rounded-lg border border-line bg-white/60 px-4 py-3"
-                >
-                  <span className="text-sm text-ink">&ldquo;{hook.text}&rdquo;</span>
-                  <ScoreBadge score={hook.score} />
-                </div>
-              ))}
+            <div className="mb-4 flex items-center justify-between">
+              <SectionTitle>
+                Saved Hooks{" "}
+                {savedHooks.length > 0 && (
+                  <span className="ml-1.5 rounded-full bg-brass/15 px-2 py-0.5 font-mono text-xs text-brass">
+                    {savedHooks.length}
+                  </span>
+                )}
+              </SectionTitle>
             </div>
+
+            {savedHooks.length === 0 ? (
+              <p className="py-4 text-center text-sm text-muted">
+                No hooks saved yet. Generate ideas above and click the bookmark
+                icon to save.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {savedHooks.map((hook) => (
+                  <div
+                    key={hook.id}
+                    className="flex flex-col gap-2 rounded-lg border border-line bg-white/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm text-ink">
+                        &ldquo;{hook.text}&rdquo;
+                      </p>
+                      {(hook.theme || hook.emotion) && (
+                        <p className="mt-0.5 text-xs text-muted">
+                          {[hook.theme, hook.emotion, hook.hookType]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <StarRating
+                        value={hook.rating}
+                        onChange={(r) => updateRating(hook.id, r)}
+                      />
+                      <ScoreBadge score={hook.score} />
+                      <button
+                        onClick={() => deleteHook(hook.id)}
+                        className="text-muted transition-colors hover:text-burgundy"
+                        title="Delete"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
         </div>
 
@@ -138,7 +352,9 @@ export default function HookLabPage() {
                     <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white">
                       <div
                         className="h-full rounded-full bg-success"
-                        style={{ width: `${(item.done / item.total) * 100}%` }}
+                        style={{
+                          width: `${(item.done / item.total) * 100}%`,
+                        }}
                       />
                     </div>
                   </div>
@@ -152,25 +368,17 @@ export default function HookLabPage() {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <label className="block">
       <span className="label-caps mb-1.5 block">{label}</span>
       {children}
     </label>
-  );
-}
-
-function ScoreBadge({ score }: { score: number }) {
-  const color =
-    score >= 8.5
-      ? "bg-success/15 text-success"
-      : score >= 7.5
-        ? "bg-brass/15 text-brass"
-        : "bg-amber/15 text-amber";
-  return (
-    <span className={`rounded-full px-2.5 py-0.5 font-serif text-xs ${color}`}>
-      {score.toFixed(1)}
-    </span>
   );
 }
