@@ -8,11 +8,13 @@ import {
   Trash2,
   Star,
   BookmarkPlus,
+  Loader2,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, SectionTitle } from "@/components/Card";
 import { hookTypes, hookWorkout } from "@/lib/mockData";
 import { getStorage, setStorage } from "@/lib/storage";
+import { askAI, parseListResponse } from "@/lib/aiClient";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -139,6 +141,8 @@ export default function HookLabPage() {
   const [hookType, setHookType] = useState(hookTypes[0]);
   const [generatedIdeas, setGeneratedIdeas] = useState<string[]>([]);
   const [savedHooks, setSavedHooks] = useState<HookIdea[]>([]);
+  const [generating, setGenerating] = useState(false);
+  const [hasGenerated, setHasGenerated] = useState(false);
 
   // Load from localStorage
   useEffect(() => {
@@ -151,9 +155,17 @@ export default function HookLabPage() {
     setStorage("hook-lab", next);
   };
 
-  const generate = () => {
-    const ideas = getIdeas(theme, emotion);
-    setGeneratedIdeas(ideas);
+  // AI-first generation with a deterministic local fallback.
+  const generate = async () => {
+    setGenerating(true);
+    setHasGenerated(true);
+    const prompt = `Generate 5 original ${hookType.toLowerCase()} ideas for a song. Theme: ${
+      theme || "open"
+    }. Emotion: ${emotion || "open"}. Return one short hook per line, no numbering, no copyrighted lyrics.`;
+    const ai = await askAI(prompt, "Hook Lab");
+    const ideas = ai ? parseListResponse(ai, 5) : getIdeas(theme, emotion);
+    setGeneratedIdeas(ideas.length ? ideas : getIdeas(theme, emotion));
+    setGenerating(false);
   };
 
   const saveHook = (text: string) => {
@@ -223,16 +235,42 @@ export default function HookLabPage() {
                 </select>
               </Field>
               <div className="flex items-end">
-                <button onClick={generate} className="btn-brass w-full">
-                  <Sparkles className="h-4 w-4" />
+                <button
+                  onClick={generate}
+                  disabled={generating}
+                  className="btn-brass w-full"
+                >
+                  {generating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4" />
+                  )}
                   Generate Ideas
                 </button>
               </div>
             </div>
 
-            {generatedIdeas.length > 0 && (
+            {generating && (
+              <p className="mt-5 flex items-center gap-2 text-sm text-muted">
+                <Loader2 className="h-4 w-4 animate-spin text-brass" />
+                Generating hook ideas…
+              </p>
+            )}
+
+            {!generating && hasGenerated && generatedIdeas.length === 0 && (
+              <p className="mt-5 text-sm text-muted">
+                No ideas yet — adjust the theme or emotion and generate again.
+              </p>
+            )}
+
+            {!generating && generatedIdeas.length > 0 && (
               <div className="mt-5 space-y-2">
-                <p className="label-caps">Generated Ideas</p>
+                <p className="label-caps">
+                  Suggested Ideas{" "}
+                  <span className="font-normal normal-case tracking-normal text-muted">
+                    — save the ones worth keeping
+                  </span>
+                </p>
                 {generatedIdeas.map((idea) => (
                   <div
                     key={idea}
