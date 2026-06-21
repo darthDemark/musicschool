@@ -7,6 +7,7 @@
 
 export const KEYS = {
   sketchpadIdeas: "hitcamp_sketchpad_ideas",
+  sketchpadProjects: "hitcamp_sketchpad_projects",
   drumPatterns: "hitcamp_drum_patterns",
   productionPlans: "hitcamp_production_plans",
   arrangements: "hitcamp_arrangements",

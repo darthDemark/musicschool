@@ -11,7 +11,7 @@ import {
   categoryProgress,
 } from "./theoryProgress";
 import { computeStreak } from "./activity";
-import { KEYS, count, completedCount } from "./hitcampStore";
+import { KEYS, count, completedCount, loadList } from "./hitcampStore";
 
 export interface MissionTask {
   label: string;
@@ -152,8 +152,15 @@ export function useDashboard() {
       .filter((s) => s.pct > 0)
       .sort((a, b) => b.pct - a.pct);
 
-    // Hit Camp activity counts.
-    const sketchpadIdeas = count(KEYS.sketchpadIdeas);
+    // Hit Camp activity counts. Sketchpad clips now live inside projects.
+    let sketchpadIdeas = count(KEYS.sketchpadIdeas);
+    const sketchProjects = loadList<{ tracks?: { clips?: unknown[] }[] }>(
+      KEYS.sketchpadProjects
+    );
+    sketchpadIdeas += sketchProjects.reduce(
+      (a, pr) => a + (pr.tracks ?? []).reduce((b, t) => b + (t.clips?.length ?? 0), 0),
+      0
+    );
     const arrangements = count(KEYS.arrangements);
     const productions = count(KEYS.productionPlans);
     const drumPatterns = count(KEYS.drumPatterns);
