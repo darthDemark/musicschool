@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { RotateCcw } from "lucide-react";
 import { Card, SectionTitle } from "@/components/Card";
 import { ProgressRing } from "@/components/ProgressRing";
 
@@ -44,7 +45,16 @@ export function MixerConsole() {
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_260px]">
       <Card>
-        <SectionTitle className="mb-1">Console</SectionTitle>
+        <div className="mb-1 flex items-center justify-between">
+          <SectionTitle>Console</SectionTitle>
+          <button
+            onClick={() => setChannels(INIT.map((c) => ({ ...c })))}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs text-muted transition-colors hover:text-ink"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            Reset
+          </button>
+        </div>
         <p className="mb-5 text-sm text-muted">
           A preview of the mixing workspace — faders, pan, mute/solo, and meters.
         </p>

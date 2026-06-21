@@ -4,7 +4,15 @@ import { Card, SectionTitle } from "@/components/Card";
 import { ImageBackdrop } from "@/components/ImageBackdrop";
 import type { Discipline } from "@/lib/disciplines";
 
-export function DisciplinePage({ discipline: d }: { discipline: Discipline }) {
+export function DisciplinePage({
+  discipline: d,
+  hideModules = false,
+  children,
+}: {
+  discipline: Discipline;
+  hideModules?: boolean;
+  children?: React.ReactNode;
+}) {
   return (
     <div className="animate-page space-y-8">
       {/* Hero */}
@@ -34,20 +42,22 @@ export function DisciplinePage({ discipline: d }: { discipline: Discipline }) {
             </div>
           </Card>
 
-          <Card>
-            <SectionTitle className="mb-4">Modules</SectionTitle>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {d.modules.map((m) => (
-                <div
-                  key={m.title}
-                  className="rounded-lg border border-white/10 bg-white/[0.03] p-4 transition-transform duration-200 ease-out hover:-translate-y-0.5"
-                >
-                  <p className="font-medium text-ink">{m.title}</p>
-                  <p className="mt-1 text-sm text-muted">{m.desc}</p>
-                </div>
-              ))}
-            </div>
-          </Card>
+          {!hideModules && (
+            <Card>
+              <SectionTitle className="mb-4">Modules</SectionTitle>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {d.modules.map((m) => (
+                  <div
+                    key={m.title}
+                    className="rounded-lg border border-white/10 bg-white/[0.03] p-4 transition-transform duration-200 ease-out hover:-translate-y-0.5"
+                  >
+                    <p className="font-medium text-ink">{m.title}</p>
+                    <p className="mt-1 text-sm text-muted">{m.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
         </div>
 
         <aside className="space-y-6">
@@ -82,6 +92,8 @@ export function DisciplinePage({ discipline: d }: { discipline: Discipline }) {
           )}
         </aside>
       </div>
+
+      {children}
     </div>
   );
 }

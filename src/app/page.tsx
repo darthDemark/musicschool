@@ -12,6 +12,7 @@ import {
   Share2,
   Wrench,
   ChevronRight,
+  Check,
 } from "lucide-react";
 import { Card, SectionTitle } from "@/components/Card";
 import { ProgressRing } from "@/components/ProgressRing";
@@ -284,10 +285,37 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Today's Mission — real daily workout */}
+      {/* Today's Mission — generated from incomplete real tasks */}
       <section>
         <SectionTitle className="mb-4">Today&apos;s Mission</SectionTitle>
-        <div className="lg:max-w-md">
+        <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
+          <Card>
+            <p className="label-caps mb-3">Complete these to keep your streak</p>
+            <div className="space-y-2">
+              {d.mission.map((m) => (
+                <Link
+                  key={m.label}
+                  href={m.href}
+                  className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm transition-colors hover:border-brass/40"
+                >
+                  <span className="flex items-center gap-2.5">
+                    <span
+                      className={`flex h-5 w-5 items-center justify-center rounded-full border ${
+                        m.done ? "border-success bg-success/20 text-success" : "border-white/20 text-transparent"
+                      }`}
+                    >
+                      <Check className="h-3 w-3" />
+                    </span>
+                    <span className={m.done ? "text-muted line-through" : "text-ink"}>{m.label}</span>
+                  </span>
+                  {!m.done && <ArrowRight className="h-4 w-4 text-brass" />}
+                </Link>
+              ))}
+            </div>
+            {d.mission.every((m) => m.done) && d.mission.length > 0 && (
+              <p className="mt-3 text-sm text-success">All missions complete — nice work.</p>
+            )}
+          </Card>
           <DashboardWorkout />
         </div>
       </section>

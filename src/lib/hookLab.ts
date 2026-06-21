@@ -138,19 +138,42 @@ export interface HookCategoryScore {
   cats: { label: string; value: number }[];
 }
 
-const STUDIO_CATS = ["Catchiness", "Clarity", "Uniqueness", "Replay Value"];
+const EMO_WORDS = [
+  "love", "heart", "fire", "night", "alone", "crave", "burn", "ache", "dream",
+  "lost", "gold", "danger", "fall", "stay", "gone", "need", "want", "rain",
+  "cold", "home", "kiss", "cry", "hold", "run", "break", "secret",
+];
+const SPECIFIC_RE = /\b(\d+|tonight|3am|car|door|street|phone|name|city|window|midnight|highway|neon)\b/i;
 
-/** Four-category score for the Hook Studio panel. */
+const clampS = (v: number) => Math.max(4, Math.min(10, +v.toFixed(1)));
+
+/**
+ * Four-category score for the Hook Studio, using real heuristics:
+ * length, specificity, repetition, and emotional words.
+ */
 export function scoreHookCategories(text: string): HookCategoryScore {
-  const seed = hashString((text || "").toLowerCase());
-  const words = text.trim().split(/\s+/).filter(Boolean).length || 1;
-  const cats = STUDIO_CATS.map((label, i) => {
-    let base = 6.4 + (((seed >> (i * 3)) % 34) / 10);
-    if (label === "Clarity") base += words <= 6 ? 1.0 : -0.6;
-    if (label === "Catchiness") base += words <= 8 ? 0.6 : -0.3;
-    if (label === "Replay Value") base += words <= 7 ? 0.4 : -0.3;
-    return { label, value: Math.max(4, Math.min(10, +base.toFixed(1))) };
-  });
+  const t = (text || "").trim();
+  const words = t.split(/\s+/).filter(Boolean);
+  const wc = words.length;
+  const lower = t.toLowerCase();
+  const emoHits = EMO_WORDS.filter((w) => lower.includes(w)).length;
+  const uniqueWords = new Set(words.map((w) => w.toLowerCase())).size;
+  const repetition = wc > 0 ? 1 - uniqueWords / wc : 0; // higher = more repeated
+  const specific = SPECIFIC_RE.test(t) ? 1 : 0;
+
+  const clarity = wc === 0 ? 4 : clampS(10 - Math.max(0, wc - 6) * 0.9);
+  const catchiness =
+    wc === 0 ? 4 : clampS(5 + emoHits * 1.1 + repetition * 4 + (wc >= 2 && wc <= 6 ? 1.6 : 0));
+  const uniqueness =
+    wc === 0 ? 4 : clampS(5.4 + specific * 2 + (uniqueWords >= 4 ? 1 : 0) + emoHits * 0.4);
+  const replay = wc === 0 ? 4 : clampS((catchiness + uniqueness) / 2 + repetition * 1.5);
+
+  const cats = [
+    { label: "Catchiness", value: catchiness },
+    { label: "Clarity", value: clarity },
+    { label: "Uniqueness", value: uniqueness },
+    { label: "Replay Value", value: replay },
+  ];
   const overall = +(cats.reduce((a, c) => a + c.value, 0) / cats.length).toFixed(1);
   return { overall, cats };
 }

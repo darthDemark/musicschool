@@ -11,6 +11,13 @@ import {
   categoryProgress,
 } from "./theoryProgress";
 import { computeStreak } from "./activity";
+import { KEYS, count, completedCount } from "./hitcampStore";
+
+export interface MissionTask {
+  label: string;
+  href: string;
+  done: boolean;
+}
 
 export interface ContinueLearning {
   unit: string;
@@ -47,6 +54,12 @@ export interface DashboardData {
   xpIntoLevel: number;
   xpForLevel: number;
   skills: Skill[];
+  sketchpadIdeas: number;
+  arrangements: number;
+  productions: number;
+  drumPatterns: number;
+  soundPatches: number;
+  mission: MissionTask[];
 }
 
 const XP_PER_LEVEL = 600;
@@ -65,6 +78,12 @@ const EMPTY: DashboardData = {
   xpIntoLevel: 0,
   xpForLevel: XP_PER_LEVEL,
   skills: [],
+  sketchpadIdeas: 0,
+  arrangements: 0,
+  productions: 0,
+  drumPatterns: 0,
+  soundPatches: 0,
+  mission: [],
 };
 
 function levelFromPct(pct: number): Skill["level"] {
@@ -133,6 +152,22 @@ export function useDashboard() {
       .filter((s) => s.pct > 0)
       .sort((a, b) => b.pct - a.pct);
 
+    // Hit Camp activity counts.
+    const sketchpadIdeas = count(KEYS.sketchpadIdeas);
+    const arrangements = count(KEYS.arrangements);
+    const productions = count(KEYS.productionPlans);
+    const drumPatterns = count(KEYS.drumPatterns);
+    const soundPatches = count(KEYS.soundPatches);
+    const hitcampHooks = count(KEYS.hooks);
+
+    // Today's Mission — generated from incomplete real tasks.
+    const mission: MissionTask[] = [
+      { label: "Record one idea in Sketchpad", href: "/sketchpad", done: sketchpadIdeas > 0 },
+      { label: "Complete one Beatmaking module", href: "/beatmaking", done: completedCount("beatmaking") > 0 },
+      { label: "Write one hook", href: "/hook-lab", done: hooksWritten > 0 || hitcampHooks > 0 },
+      { label: "Analyze one song", href: "/hit-lab", done: songsAnalyzed > 0 },
+    ];
+
     setData({
       continueLearning,
       lessonsCompleted,
@@ -147,6 +182,12 @@ export function useDashboard() {
       xpIntoLevel,
       xpForLevel: XP_PER_LEVEL,
       skills,
+      sketchpadIdeas,
+      arrangements,
+      productions,
+      drumPatterns,
+      soundPatches,
+      mission,
     });
     setHydrated(true);
   }, []);

@@ -27,6 +27,7 @@ import { WorkoutPanel } from "@/components/WorkoutPanel";
 import { useWorkout } from "@/lib/useWorkout";
 import { getStorage, setStorage } from "@/lib/storage";
 import { logActivity } from "@/lib/activity";
+import { KEYS, addItem, makeItem } from "@/lib/hitcampStore";
 import { loadProjects, saveProjects, loadActiveId } from "@/lib/writerTools";
 import {
   HOOK_TYPES,
@@ -125,6 +126,12 @@ export default function HookLabPage() {
       savedAt: new Date().toLocaleDateString(),
     };
     persistSaved([hook, ...savedHooks]);
+    // Canonical store for cross-app/dashboard + future Supabase.
+    addItem(KEYS.hooks, {
+      ...makeItem({ type: "hook", title: text }),
+      tags: opts?.chorus ? ["chorus", hookType] : [hookType],
+      notes: `Score ${hook.score}`,
+    });
     logActivity();
     // Workout: increment the relevant action(s).
     wk.recordAction("save");

@@ -1,16 +1,29 @@
 import { DisciplinePage } from "@/components/DisciplinePage";
+import { ModuleList } from "@/components/ModuleList";
 import { MixerConsole } from "@/components/MixerConsole";
-import { SectionTitle } from "@/components/Card";
+import { Checklist } from "@/components/Checklist";
 import { disciplines } from "@/lib/disciplines";
 
+const MIX_CHECK = [
+  "Vocals audible and up front",
+  "Kick and bass balanced",
+  "No clipping on the master",
+  "Stereo width controlled",
+  "Reverb not overwhelming",
+];
+
 export default function Page() {
+  const d = disciplines.mixing;
   return (
-    <div className="space-y-8">
-      <DisciplinePage discipline={disciplines.mixing} />
-      <section className="animate-page">
-        <SectionTitle className="mb-4">Mixing Console</SectionTitle>
-        <MixerConsole />
-      </section>
-    </div>
+    <DisciplinePage discipline={d} hideModules>
+      <ModuleList section="mixing" modules={d.modules} />
+      <MixerConsole />
+      <Checklist
+        title="Mix Checklist"
+        items={MIX_CHECK}
+        storageKey="hitcamp_mix_notes"
+        notesLabel="Mix Notes"
+      />
+    </DisciplinePage>
   );
 }
