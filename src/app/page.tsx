@@ -284,9 +284,9 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Workout teaser uses real state but lives off-fold for quick access */}
+      {/* Today's Mission — real daily workout */}
       <section>
-        <SectionTitle className="mb-4">Today&apos;s Workout</SectionTitle>
+        <SectionTitle className="mb-4">Today&apos;s Mission</SectionTitle>
         <div className="lg:max-w-md">
           <DashboardWorkout />
         </div>

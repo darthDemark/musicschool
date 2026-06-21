@@ -133,6 +133,28 @@ export interface HookScore {
   scores: { label: string; value: number }[];
 }
 
+export interface HookCategoryScore {
+  overall: number;
+  cats: { label: string; value: number }[];
+}
+
+const STUDIO_CATS = ["Catchiness", "Clarity", "Uniqueness", "Replay Value"];
+
+/** Four-category score for the Hook Studio panel. */
+export function scoreHookCategories(text: string): HookCategoryScore {
+  const seed = hashString((text || "").toLowerCase());
+  const words = text.trim().split(/\s+/).filter(Boolean).length || 1;
+  const cats = STUDIO_CATS.map((label, i) => {
+    let base = 6.4 + (((seed >> (i * 3)) % 34) / 10);
+    if (label === "Clarity") base += words <= 6 ? 1.0 : -0.6;
+    if (label === "Catchiness") base += words <= 8 ? 0.6 : -0.3;
+    if (label === "Replay Value") base += words <= 7 ? 0.4 : -0.3;
+    return { label, value: Math.max(4, Math.min(10, +base.toFixed(1))) };
+  });
+  const overall = +(cats.reduce((a, c) => a + c.value, 0) / cats.length).toFixed(1);
+  return { overall, cats };
+}
+
 export function scoreHook(text: string, hookType?: string): HookScore {
   const seed = hashString((text + (hookType ?? "")).toLowerCase());
   const words = text.trim().split(/\s+/).filter(Boolean).length || 1;
@@ -180,7 +202,16 @@ export function transformIdea(base: string, hookType: HookType): string {
 
 // ------------------------------- Rewrites ----------------------------------
 
-export type RewriteMode = "darker" | "romantic" | "rhythmic" | "singable";
+export type RewriteMode =
+  | "darker"
+  | "romantic"
+  | "rhythmic"
+  | "singable"
+  | "specific"
+  | "contrast"
+  | "shorten"
+  | "verb"
+  | "imagery";
 
 const DARK: Record<string, string> = {
   blue: "midnight",
@@ -207,6 +238,25 @@ function swap(text: string, map: Record<string, string>): string {
   });
 }
 
+const STRONG_VERBS: Record<string, string> = {
+  want: "crave",
+  like: "need",
+  go: "run",
+  is: "burns",
+  are: "break",
+  have: "hold",
+  see: "chase",
+  feel: "ache",
+  get: "take",
+  make: "break",
+};
+const IMAGERY_TAILS = [
+  "like rain on glass",
+  "under the streetlights",
+  "with the engine still running",
+  "in the blue before dawn",
+];
+
 export function rewriteHook(text: string, mode: RewriteMode): string {
   const t = text.trim();
   if (!t) return text;
@@ -225,6 +275,18 @@ export function rewriteHook(text: string, mode: RewriteMode): string {
       const words = t.replace(/[".]/g, "").split(/\s+/);
       return words.slice(0, 5).join(" ");
     }
+    case "shorten": {
+      const words = t.replace(/[".]/g, "").split(/\s+/);
+      return words.slice(0, 4).join(" ");
+    }
+    case "verb":
+      return swap(t, STRONG_VERBS);
+    case "imagery":
+      return `${t}, ${IMAGERY_TAILS[t.length % IMAGERY_TAILS.length]}`;
+    case "contrast":
+      return `${t} — but I can't walk away`;
+    case "specific":
+      return `${t} at 3am`;
     default:
       return text;
   }

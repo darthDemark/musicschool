@@ -10,6 +10,7 @@ import {
   Lightbulb,
   Music4,
   Music2,
+  Pencil,
   SlidersHorizontal,
   SlidersVertical,
   LayoutGrid,
@@ -66,6 +67,7 @@ export const navItems: NavItem[] = [
   { label: "Creativity", href: "/creativity", icon: Lightbulb, group: "Create" },
   { label: "Lyrics & Melody", href: "/lyrics-melody", icon: Music4, group: "Create" },
   { label: "Composition Lab", href: "/composition-lab", icon: Music2, group: "Create" },
+  { label: "Sketchpad", href: "/sketchpad", icon: Pencil, group: "Create" },
 
   { label: "Production", href: "/production", icon: SlidersHorizontal, group: "Produce" },
   { label: "Beatmaking", href: "/beatmaking", icon: LayoutGrid, group: "Produce" },
