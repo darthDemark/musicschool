@@ -97,9 +97,9 @@ export default function TheoryPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Theory Academy"
-        title="The Conservatory Textbook"
-        subtitle="A complete course of study, from the grammar of notation to the architecture of fugue."
+        eyebrow="Learn"
+        title="Music Theory"
+        subtitle="From the fundamentals to advanced harmony and counterpoint — one subtopic at a time."
       />
 
       <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
