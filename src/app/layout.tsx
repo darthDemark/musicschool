@@ -1,13 +1,7 @@
 import type { Metadata } from "next";
-import { Playfair_Display, Inter } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/Sidebar";
-
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  variable: "--font-playfair",
-  display: "swap",
-});
 
 const inter = Inter({
   subsets: ["latin"],
@@ -16,9 +10,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Music School — A Private Conservatory",
+  title: "Hit Camp — Learn. Make Hit Records.",
   description:
-    "A premium music education app for songwriters, producers, composers, and serious students of music.",
+    "Hit Camp by HitLab — a premium training platform for songwriters, producers, and artists.",
 };
 
 export default function RootLayout({
@@ -27,9 +21,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${playfair.variable} ${inter.variable}`}>
-      <body className="font-sans antialiased">
-        <div className="flex min-h-screen bg-ivory">
+    <html lang="en" className={inter.variable}>
+      <body className="bg-studio font-sans text-ink antialiased">
+        <div className="flex min-h-screen bg-studio">
           <Sidebar />
           <main className="flex-1 lg:ml-[264px]">
             <div className="mx-auto w-full max-w-6xl px-5 pb-20 pt-6 sm:px-8 lg:px-10">

@@ -9,24 +9,32 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ivory: "#F7F4EE",
-        sand: "#EFE8DC",
-        charcoal: "#111111",
-        ink: "#1F1F1F",
-        muted: "#666666",
-        brass: "#C49B3D",
-        burgundy: "#6D1F2A",
-        line: "#D8CFC0",
+        // Hit Camp dark studio system. Legacy token names are kept and remapped
+        // to dark-theme values so the whole app reskins without per-element edits.
+        studio: "#070707",
+        studio2: "#0D0D0D",
+        ivory: "#F5F5F0", // primary light text / on-dark
+        sand: "#16161A", // subtle elevated dark panel
+        charcoal: "#0D0D0D", // dark surface + text on gold
+        ink: "#F5F5F0", // primary text (now light)
+        muted: "#A8A8A8",
+        brass: "#D4AF37", // gold accent
+        burgundy: "#F0C36A", // warm accent (remapped from old red)
+        line: "#2A2A2A",
         success: "#7A9B76",
-        amber: "#B8860B",
+        amber: "#E0A852",
+        gold: "#D4AF37",
+        warm: "#F0C36A",
       },
       fontFamily: {
-        serif: ["var(--font-playfair)", "Playfair Display", "Georgia", "serif"],
+        // Sans-only system. `serif` is intentionally aliased to Inter so existing
+        // `font-serif` headings render as clean sans without editing every page.
+        serif: ["var(--font-inter)", "Inter", "system-ui", "sans-serif"],
         sans: ["var(--font-inter)", "Inter", "system-ui", "sans-serif"],
       },
       boxShadow: {
-        card: "0 1px 2px rgba(31,31,31,0.04), 0 4px 16px rgba(31,31,31,0.05)",
-        "card-hover": "0 2px 4px rgba(31,31,31,0.06), 0 8px 28px rgba(31,31,31,0.08)",
+        card: "0 1px 2px rgba(0,0,0,0.4), 0 10px 30px rgba(0,0,0,0.45)",
+        "card-hover": "0 2px 6px rgba(0,0,0,0.5), 0 16px 40px rgba(0,0,0,0.55)",
       },
       borderRadius: {
         xl2: "14px",
