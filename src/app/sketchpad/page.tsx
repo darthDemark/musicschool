@@ -9,16 +9,25 @@ import {
   Circle,
   Save,
   Plus,
-  Drum,
+  Grid3x3,
   AudioWaveform,
   Mic,
   Search,
+  MoreHorizontal,
+  Undo2,
+  Redo2,
+  Settings,
+  StickyNote,
+  ChevronUp,
+  ChevronDown,
+  Maximize2,
   Star,
   Trash2,
   Pencil,
   Download,
   AlertTriangle,
   Volume2,
+  AudioLines,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { DRUMS, playDrum, preloadDrums } from "@/lib/drumKit";
@@ -75,11 +84,11 @@ const KEY = "hitcamp_sketchpad_projects";
 const STEPS = 16;
 
 const TRACK_DEFS: { id: string; name: string; type: TrackType }[] = [
-  { id: "drums", name: "Drums", type: "drums" },
+  { id: "drums", name: "Drums / Pads", type: "drums" },
   { id: "synth1", name: "Synth 1", type: "synth" },
   { id: "synth2", name: "Synth 2", type: "synth" },
-  { id: "audio1", name: "Audio 1", type: "audio" },
-  { id: "audio2", name: "Audio 2", type: "audio" },
+  { id: "audio1", name: "Audio 1 (Vocal)", type: "audio" },
+  { id: "audio2", name: "Audio 2 (Guitar)", type: "audio" },
   { id: "audio3", name: "Audio 3", type: "audio" },
   { id: "audio4", name: "Audio 4", type: "audio" },
   { id: "audio5", name: "Audio 5", type: "audio" },
@@ -117,8 +126,8 @@ const ROLL_NOTES = (() => {
   return out;
 })();
 
-const TYPE_ICON: Record<TrackType, typeof Drum> = {
-  drums: Drum,
+const TYPE_ICON: Record<TrackType, typeof Grid3x3> = {
+  drums: Grid3x3,
   synth: AudioWaveform,
   audio: Mic,
 };
@@ -214,6 +223,19 @@ export default function SketchpadPage() {
         t.id === trackId ? { ...t, clips: t.clips.filter((c) => c.id !== clipId) } : t
       ),
     }));
+
+  const saveDrumPattern = (steps: Record<string, boolean[]>) => {
+    const n = (project?.tracks.find((t) => t.id === "drums")?.clips.length ?? 0) + 1;
+    addClip("drums", {
+      id: uid(),
+      trackId: "drums",
+      type: "drum-pattern",
+      name: `Drum Pattern ${String(n).padStart(2, "0")}`,
+      createdAt: nowISO(),
+      startTime: 0,
+      steps,
+    });
+  };
 
   /* --------------------------- transport ------------------------------- */
 
@@ -370,12 +392,6 @@ export default function SketchpadPage() {
 
   return (
     <div className="animate-page">
-      <PageHeader
-        eyebrow="Create"
-        title="Sketchpad"
-        subtitle="An 8-track idea recorder — capture a groove, two synth ideas, and five audio takes."
-      />
-
       {toast && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber/30 bg-amber/10 px-4 py-2.5 text-sm text-ink">
           <AlertTriangle className="h-4 w-4 text-amber" />
@@ -423,11 +439,11 @@ export default function SketchpadPage() {
               <div className="w-[258px] shrink-0 border-r border-white/10 px-3 py-2">
                 <span className="label-caps">Tracks</span>
               </div>
-              <div className="beat-grid flex-1 px-0 py-2">
+              <div className="beat-grid flex-1 py-2">
                 <div className="flex">
-                  {Array.from({ length: 4 }).map((_, b) => (
-                    <span key={b} className="flex-1 pl-2 text-xs text-faint">
-                      {b + 1}
+                  {Array.from({ length: 13 }).map((_, b) => (
+                    <span key={b} className="flex-1 pl-1 text-[11px] text-faint">
+                      {b * 4 + 1}
                     </span>
                   ))}
                 </div>
@@ -493,23 +509,14 @@ export default function SketchpadPage() {
           ))}
         </div>
 
-        {editorTab === "Drum Pad" && <DrumPadPanel master={master} />}
+        {editorTab === "Drum Pad" && (
+          <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
+            <DrumPadPanel master={master} />
+            <DrumSequencer onSave={saveDrumPattern} bpm={project.bpm} master={master} />
+          </div>
+        )}
         {editorTab === "Sequencer" && (
-          <DrumSequencer
-            onSave={(steps) =>
-              addClip("drums", {
-                id: uid(),
-                trackId: "drums",
-                type: "drum-pattern",
-                name: "Drum pattern",
-                createdAt: nowISO(),
-                startTime: 0,
-                steps,
-              })
-            }
-            bpm={project.bpm}
-            master={master}
-          />
+          <DrumSequencer onSave={saveDrumPattern} bpm={project.bpm} master={master} />
         )}
         {editorTab === "Synth" && (
           <SynthEditor
@@ -550,13 +557,51 @@ export default function SketchpadPage() {
       </div>
 
       {/* Status bar */}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 bg-studio2 px-4 py-2 text-xs text-faint">
-        <span>{project.title}</span>
-        <span>
-          {project.bpm} BPM · {playing ? `Step ${step + 1}/${STEPS}` : "Stopped"} ·{" "}
-          {project.tracks.reduce((a, t) => a + t.clips.length, 0)} clips
+      <StatusBar project={project} step={step} playing={playing} />
+    </div>
+  );
+}
+
+function StatusBar({ project, step, playing }: { project: Project; step: number; playing: boolean }) {
+  const totalSec = project.tracks
+    .flatMap((t) => t.clips)
+    .reduce((a, c) => a + (c.duration ?? 0), 0);
+  const dur = `${String(Math.floor(totalSec / 60)).padStart(2, "0")}:${String(
+    Math.floor(totalSec % 60)
+  ).padStart(2, "0")}`;
+  const bar = playing ? Math.floor(step / 4) + 1 : 1;
+  const beat = playing ? (step % 4) + 1 : 1;
+
+  let bytes = 0;
+  if (typeof window !== "undefined") {
+    try {
+      for (let i = 0; i < window.localStorage.length; i++) {
+        const k = window.localStorage.key(i);
+        if (k) bytes += (window.localStorage.getItem(k) ?? "").length;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  const usedMb = (bytes / (1024 * 1024)).toFixed(1);
+  const pct = Math.min(100, (bytes / (5 * 1024 * 1024)) * 100);
+
+  return (
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/10 bg-studio2 px-4 py-2 text-xs text-faint">
+      <span>Project Duration {dur || "00:00"}</span>
+      <span>Bar {bar} : {beat} : {project.bpm}</span>
+      <span className="flex items-center gap-2">
+        Storage Used
+        <span className="h-1.5 w-24 overflow-hidden rounded-full bg-white/10">
+          <span className="block h-full rounded-full bg-brass" style={{ width: `${Math.max(2, pct)}%` }} />
         </span>
-      </div>
+        {usedMb} MB / 5 MB
+      </span>
+      <span className="flex items-center gap-2 text-success">
+        <span className="h-1.5 w-1.5 rounded-full bg-success" />
+        Auto saved
+        <Settings className="h-3.5 w-3.5 text-faint" />
+      </span>
     </div>
   );
 }
@@ -587,19 +632,40 @@ function Transport(props: {
 }) {
   const p = props.project;
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-xl2 border border-white/10 bg-surface px-4 py-3">
-      <input
-        value={p.title}
-        onChange={(e) => props.onTitle(e.target.value)}
-        className="w-40 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-ink outline-none focus:border-brass/50"
-      />
-      <div className="flex items-center gap-1">
+    <div className="flex flex-wrap items-center gap-3 rounded-xl2 border border-white/10 bg-surface px-4 py-2.5">
+      {/* Brand */}
+      <div className="flex items-center gap-2 pr-2">
+        <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-brass/40 bg-brass/10">
+          <AudioLines className="h-4 w-4 text-brass" />
+        </span>
+        <span className="leading-tight">
+          <span className="block text-sm font-semibold text-ink">Hit Camp</span>
+          <span className="block text-[9px] uppercase tracking-[0.22em] text-faint">Sketchpad</span>
+        </span>
+      </div>
+
+      {/* Title */}
+      <div className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5">
+        <input
+          value={p.title}
+          onChange={(e) => props.onTitle(e.target.value)}
+          className="w-36 bg-transparent text-sm text-ink outline-none"
+        />
+        <Pencil className="h-3.5 w-3.5 text-faint" />
+      </div>
+
+      {/* Undo/redo */}
+      <div className="flex items-center gap-0.5">
+        <TBtn label="Undo" onClick={() => {}}><Undo2 className="h-4 w-4" /></TBtn>
+        <TBtn label="Redo" onClick={() => {}}><Redo2 className="h-4 w-4" /></TBtn>
+      </div>
+
+      {/* Transport group */}
+      <div className="flex items-center gap-1 rounded-full border border-white/10 bg-studio2 px-2 py-1">
         <TBtn label="Rewind" onClick={props.onRewind}><Rewind className="h-4 w-4" /></TBtn>
         <button
           onClick={props.onPlay}
-          className={`flex h-10 w-10 items-center justify-center rounded-full ${
-            props.playing ? "bg-brass text-charcoal" : "bg-brass text-charcoal hover:brightness-105"
-          }`}
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-brass text-charcoal hover:brightness-105"
         >
           <Play className="h-5 w-5" />
         </button>
@@ -607,32 +673,33 @@ function Transport(props: {
         <button
           onClick={props.onRecord}
           title="Record (arm an audio track first)"
-          className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
-            props.recording ? "animate-pulse bg-[#D94A44] text-ivory" : "bg-[#D94A44]/90 text-ivory hover:bg-[#D94A44]"
+          className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
+            props.recording ? "animate-pulse bg-[#D94A44] text-ivory" : "bg-[#D94A44] text-ivory hover:brightness-110"
           }`}
         >
-          <Circle className="h-4 w-4 fill-current" />
+          <Circle className="h-3.5 w-3.5 fill-current" />
         </button>
       </div>
 
-      <ToggleBtn active={props.loop} onClick={props.onLoop} label="Loop"><Repeat className="h-4 w-4" /></ToggleBtn>
-      <ToggleBtn active={props.metro} onClick={props.onMetro} label="Metronome">
-        <span className="text-sm font-semibold">M</span>
-      </ToggleBtn>
+      {/* Loop / metro group */}
+      <div className="flex items-center gap-1 rounded-full border border-white/10 bg-studio2 px-1.5 py-1">
+        <ToggleBtn active={props.loop} onClick={props.onLoop} label="Loop"><Repeat className="h-4 w-4" /></ToggleBtn>
+        <ToggleBtn active={props.metro} onClick={props.onMetro} label="Metronome"><AlertTriangle className="h-4 w-4" /></ToggleBtn>
+      </div>
 
-      <label className="flex items-center gap-2 text-xs text-muted">
+      {/* BPM stepper */}
+      <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1">
         <span className="label-caps">BPM</span>
-        <input
-          type="number"
-          min={40}
-          max={220}
-          value={p.bpm}
-          onChange={(e) => props.onBpm(Math.min(220, Math.max(40, Number(e.target.value) || 120)))}
-          className="w-16 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-sm text-ink outline-none focus:border-brass/50"
-        />
-      </label>
+        <span className="w-8 text-center text-sm text-ink">{p.bpm}</span>
+        <div className="flex flex-col">
+          <button onClick={() => props.onBpm(Math.min(220, p.bpm + 1))} className="text-faint hover:text-ink"><ChevronUp className="h-3 w-3" /></button>
+          <button onClick={() => props.onBpm(Math.max(40, p.bpm - 1))} className="text-faint hover:text-ink"><ChevronDown className="h-3 w-3" /></button>
+        </div>
+      </div>
 
+      {/* Master */}
       <label className="flex items-center gap-2 text-xs text-muted">
+        <span className="label-caps">Master</span>
         <Volume2 className="h-3.5 w-3.5 text-brass" />
         <input
           type="range"
@@ -640,7 +707,7 @@ function Transport(props: {
           max={100}
           value={Math.round(props.master * 100)}
           onChange={(e) => props.onMaster(Number(e.target.value) / 100)}
-          className="w-20 accent-[#D4AF37]"
+          className="w-24 accent-[#D4AF37]"
         />
       </label>
 
@@ -648,14 +715,19 @@ function Transport(props: {
         <select
           value={props.activeId}
           onChange={(e) => props.onSwitch(e.target.value)}
-          className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-xs text-ink outline-none"
+          className="max-w-[120px] rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-xs text-ink outline-none"
         >
           {props.projects.map((pr) => (
             <option key={pr.id} value={pr.id}>{pr.title}</option>
           ))}
         </select>
-        <TBtn label="Save" onClick={props.onSave}><Save className="h-4 w-4" /></TBtn>
-        <TBtn label="New Project" onClick={props.onNew}><Plus className="h-4 w-4" /></TBtn>
+        <button onClick={props.onSave} className="btn-ghost px-3 py-1.5 text-xs">
+          <Save className="h-3.5 w-3.5" /> Save Project
+        </button>
+        <button onClick={props.onNew} className="btn-primary px-3 py-1.5 text-xs">
+          <Plus className="h-3.5 w-3.5" /> New Project
+        </button>
+        <TBtn label="More" onClick={() => {}}><MoreHorizontal className="h-4 w-4" /></TBtn>
       </div>
     </div>
   );
@@ -726,10 +798,13 @@ function TrackRow({
         {track.clips.map((c, i) => (
           <div
             key={c.id}
-            className={`absolute top-2 bottom-2 rounded-md border ${clipColor} px-2 py-1 text-[10px] text-ink shadow-[0_0_12px_rgba(212,175,55,0.15)]`}
-            style={{ left: `${2 + i * 26}%`, width: "24%" }}
+            className={`absolute top-2 bottom-2 overflow-hidden rounded-md border ${clipColor} shadow-[0_0_12px_rgba(212,175,55,0.12)]`}
+            style={{ left: `${2 + i * 27}%`, width: "25%" }}
           >
-            <span className="truncate">{c.name}</span>
+            <span className="block truncate px-1.5 pt-0.5 text-[9px] text-ink/90">{c.name}</span>
+            <div className="absolute inset-x-1 bottom-1 top-4">
+              <ClipViz clip={c} type={track.type} />
+            </div>
           </div>
         ))}
         {step >= 0 && (
@@ -741,6 +816,55 @@ function TrackRow({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function ClipViz({ clip, type }: { clip: Clip; type: TrackType }) {
+  if (type === "drums" && clip.steps) {
+    return (
+      <div className="flex h-full items-end gap-px">
+        {Array.from({ length: STEPS }).map((_, s) => {
+          const active = Object.values(clip.steps!).some((row) => row[s]);
+          return (
+            <span
+              key={s}
+              className="flex-1 rounded-[1px] bg-brass/70"
+              style={{ height: active ? "70%" : "18%", opacity: active ? 1 : 0.4 }}
+            />
+          );
+        })}
+      </div>
+    );
+  }
+  if (type === "synth" && clip.notes) {
+    return (
+      <div className="relative h-full w-full">
+        {clip.notes.slice(0, 40).map((n, i) => (
+          <span
+            key={i}
+            className="absolute h-[2px] rounded-full bg-[#C7A0FF]"
+            style={{
+              left: `${(n.step / STEPS) * 100}%`,
+              width: `${100 / STEPS - 2}%`,
+              bottom: `${((i * 7) % 80) + 8}%`,
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
+  // audio waveform placeholder (deterministic by id)
+  const seed = clip.id.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+  return (
+    <div className="flex h-full items-center gap-[1px]">
+      {Array.from({ length: 40 }).map((_, i) => (
+        <span
+          key={i}
+          className="flex-1 rounded-full bg-[#9CC0FF]"
+          style={{ height: `${20 + Math.abs(Math.sin(i * 0.7 + seed)) * 70}%` }}
+        />
+      ))}
     </div>
   );
 }
@@ -829,6 +953,7 @@ function DrumSequencer({
 }) {
   const [grid, setGrid] = useState<Record<string, boolean[]>>(emptySteps);
   const [playing, setPlaying] = useState(false);
+  const [swing, setSwing] = useState(12);
   const [cur, setCur] = useState(-1);
   const gridRef = useRef(grid);
   gridRef.current = grid;
@@ -864,33 +989,63 @@ function DrumSequencer({
 
   return (
     <div>
-      <div className="overflow-x-auto">
-        <div className="min-w-[640px] space-y-1">
-          {DRUMS.map((d) => (
-            <div key={d.id} className="flex items-center gap-1">
-              <span className="w-16 shrink-0 text-right text-[11px] text-muted">{d.label}</span>
-              <div className="flex flex-1 gap-1">
-                {grid[d.id].map((on, i) => (
-                  <button
-                    key={i}
-                    onClick={() => toggle(d.id, i)}
-                    className={`h-7 flex-1 rounded-sm border transition-colors ${
-                      on ? "border-brass bg-brass" : i % 4 === 0 ? "border-white/10 bg-white/[0.06]" : "border-white/[0.06] bg-white/[0.02]"
-                    } ${cur === i ? "ring-1 ring-brass/70" : ""}`}
-                  />
-                ))}
-              </div>
+      <div className="overflow-x-auto rounded-lg border border-white/10 bg-studio2 p-3">
+        <div className="min-w-[560px]">
+          <div className="mb-1 flex items-center gap-1 pl-16">
+            <div className="flex flex-1 gap-1">
+              {Array.from({ length: STEPS }).map((_, i) => (
+                <span key={i} className="flex-1 text-center text-[9px] text-faint">{i + 1}</span>
+              ))}
             </div>
-          ))}
+            <button title="Expand" className="ml-2 text-faint hover:text-ink"><Maximize2 className="h-3.5 w-3.5" /></button>
+          </div>
+          <div className="space-y-1">
+            {DRUMS.map((d) => (
+              <div key={d.id} className="flex items-center gap-1">
+                <span className="w-16 shrink-0 text-right text-[11px] text-muted">{d.label}</span>
+                <div className="relative flex flex-1 gap-1">
+                  {grid[d.id].map((on, i) => (
+                    <button
+                      key={i}
+                      onClick={() => toggle(d.id, i)}
+                      className={`h-6 flex-1 rounded-sm border transition-colors ${
+                        on ? "border-brass bg-brass" : i % 4 === 0 ? "border-white/10 bg-white/[0.07]" : "border-white/[0.06] bg-white/[0.02]"
+                      } ${cur === i ? "ring-1 ring-brass/70" : ""}`}
+                    />
+                  ))}
+                </div>
+                <span className="w-3.5 shrink-0" />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
-      <div className="mt-4 flex gap-2">
-        <button onClick={start} className="btn-ghost">
+
+      <div className="mt-3 flex flex-wrap items-center gap-4">
+        <button
+          onClick={start}
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-brass text-charcoal hover:brightness-105"
+        >
           {playing ? <Square className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-          {playing ? "Stop" : "Preview"}
         </button>
+        <span className="flex items-center gap-2 text-xs text-muted">
+          <span className="label-caps">BPM</span>
+          <span className="text-ink">{bpm}</span>
+        </span>
+        <label className="flex flex-1 items-center gap-2 text-xs text-muted">
+          <span className="label-caps">Swing</span>
+          <input
+            type="range"
+            min={0}
+            max={60}
+            value={swing}
+            onChange={(e) => setSwing(Number(e.target.value))}
+            className="max-w-[160px] flex-1 accent-[#D4AF37]"
+          />
+          <span className="text-brass">{swing}%</span>
+        </label>
         <button onClick={() => onSave(grid)} className="btn-brass">
-          <Save className="h-4 w-4" /> Save to Drums Track
+          <Save className="h-4 w-4" /> Save Pattern
         </button>
         <button onClick={() => setGrid(emptySteps())} className="btn-ghost">Clear</button>
       </div>
@@ -1122,6 +1277,30 @@ function IB({ onClick, children }: { onClick: () => void; children: React.ReactN
 
 /* ----------------------------- Idea Vault ------------------------------- */
 
+interface Note { id: string; title: string; createdAt: string }
+const NOTES_KEY = "hitcamp_sketchpad_quicknotes";
+
+function clipMeta(c: Clip, bpm: number): { label: string; icon: typeof Mic; color: string } {
+  if (c.type === "audio") {
+    const d = c.duration ?? 0;
+    return {
+      label: `Audio Clip · ${Math.floor(d / 60)}:${String(Math.floor(d % 60)).padStart(2, "0")}`,
+      icon: Mic,
+      color: "#4B8DFF",
+    };
+  }
+  if (c.type === "drum-pattern") return { label: `Drum Pattern · ${bpm} BPM`, icon: Grid3x3, color: "#D4AF37" };
+  return { label: `Synth Pattern · ${bpm} BPM`, icon: AudioWaveform, color: "#A855F7" };
+}
+
+function fmtClock(iso: string): string {
+  const d = new Date(iso);
+  const today = new Date();
+  const sameDay = d.toDateString() === today.toDateString();
+  const t = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return sameDay ? `Today, ${t}` : `${d.toLocaleDateString()}, ${t}`;
+}
+
 function IdeaVault({
   project,
   onRemoveClip,
@@ -1135,7 +1314,11 @@ function IdeaVault({
 }) {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<"All" | "Clips" | "Patterns" | "Projects">("All");
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => setNotes(loadList<Note>(NOTES_KEY)), []);
 
   const all = project.tracks.flatMap((t) => t.clips.map((c) => ({ ...c, trackName: t.name })));
   const filtered = all.filter((c) => {
@@ -1145,6 +1328,19 @@ function IdeaVault({
     if (tab === "Projects") return false;
     return true;
   });
+  const visibleNotes =
+    tab === "All"
+      ? notes.filter((n) => !query || n.title.toLowerCase().includes(query.toLowerCase()))
+      : [];
+
+  const newIdea = () => {
+    const text = window.prompt("New idea / note");
+    if (!text || !text.trim()) return;
+    const note: Note = { id: uid(), title: text.trim(), createdAt: nowISO() };
+    const next = [note, ...notes];
+    setNotes(next);
+    saveList(NOTES_KEY, next);
+  };
 
   const exportJson = () => {
     const blob = new Blob([JSON.stringify(project, null, 2)], { type: "application/json" });
@@ -1165,20 +1361,27 @@ function IdeaVault({
         </button>
       </div>
 
-      <div className="relative mb-3">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search ideas…"
-          className="w-full rounded-lg border border-white/10 bg-white/[0.04] py-2 pl-9 pr-3 text-sm text-ink outline-none focus:border-brass/50"
-        />
+      <div className="relative mb-3 flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search ideas…"
+            className="w-full rounded-lg border border-white/10 bg-white/[0.04] py-2 pl-9 pr-3 text-sm text-ink outline-none focus:border-brass/50"
+          />
+        </div>
       </div>
 
-      <div className="mb-3 rounded-lg border border-brass/25 bg-brass/[0.06] p-3">
-        <p className="label-caps text-brass">Current Project</p>
-        <p className="truncate text-sm text-ink">{project.title}</p>
-        <p className="text-xs text-muted">{all.length} ideas · {project.bpm} BPM</p>
+      {/* Current project card */}
+      <div className="mb-3 flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-2.5">
+        <span className="h-12 w-12 shrink-0 rounded-md bg-gradient-to-br from-[#A855F7]/40 via-[#4B8DFF]/30 to-brass/40" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-ink">{project.title}</p>
+          <p className="text-xs text-muted">{project.bpm} BPM · {project.tracks.length} Tracks</p>
+          <p className="text-[11px] text-faint">Updated just now</p>
+        </div>
+        <Star className="h-4 w-4 text-faint" />
       </div>
 
       <div className="mb-3 flex gap-1">
@@ -1197,42 +1400,99 @@ function IdeaVault({
 
       {tab === "Projects" ? (
         <p className="py-6 text-center text-sm text-muted">Switch projects from the transport bar.</p>
-      ) : filtered.length === 0 ? (
+      ) : filtered.length === 0 && visibleNotes.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted">No ideas yet. Record or sequence something.</p>
       ) : (
         <div className="space-y-2">
-          {filtered.map((c) => (
-            <div key={c.id} className="rounded-lg border border-white/10 bg-white/[0.04] p-2.5">
-              <div className="flex items-center justify-between gap-2">
+          {filtered.map((c) => {
+            const m = clipMeta(c, project.bpm);
+            const Icon = m.icon;
+            return (
+              <div key={c.id} className="rounded-lg border border-white/10 bg-white/[0.04] p-2.5">
+                <div className="flex items-center gap-2.5">
+                  <button
+                    onClick={() => {
+                      if (c.type === "audio" && c.dataUrl && audioRef.current) {
+                        audioRef.current.src = c.dataUrl;
+                        void audioRef.current.play();
+                      }
+                    }}
+                    className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+                  >
+                    <span
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+                      style={{ background: `${m.color}22`, color: m.color }}
+                    >
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm text-ink">{c.name}</span>
+                      <span className="block truncate text-xs text-muted">{m.label}</span>
+                      <span className="block text-[11px] text-faint">{fmtClock(c.createdAt)}</span>
+                    </span>
+                  </button>
+                  <button onClick={() => onFavClip(c.trackId, c.id)} className="shrink-0 text-faint hover:text-brass">
+                    <Star className={`h-4 w-4 ${c.favorite ? "fill-brass text-brass" : ""}`} />
+                  </button>
+                  <div className="relative shrink-0">
+                    <button onClick={() => setOpenMenu(openMenu === c.id ? null : c.id)} className="text-faint hover:text-ink">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </button>
+                    {openMenu === c.id && (
+                      <div className="absolute right-0 top-6 z-10 w-28 rounded-lg border border-white/10 bg-elevated p-1 shadow-card">
+                        <MenuItem onClick={() => { setOpenMenu(null); const n = window.prompt("Rename", c.name); if (n) onRenameClip(c.trackId, c.id, n); }}>
+                          <Pencil className="h-3.5 w-3.5" /> Rename
+                        </MenuItem>
+                        <MenuItem onClick={() => { setOpenMenu(null); onRemoveClip(c.trackId, c.id); }}>
+                          <Trash2 className="h-3.5 w-3.5" /> Delete
+                        </MenuItem>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+          {visibleNotes.map((n) => (
+            <div key={n.id} className="rounded-lg border border-white/10 bg-white/[0.04] p-2.5">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.06] text-muted">
+                  <StickyNote className="h-4 w-4" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm text-ink">{n.title}</span>
+                  <span className="block text-xs text-muted">Note · Lyrics</span>
+                  <span className="block text-[11px] text-faint">{fmtClock(n.createdAt)}</span>
+                </span>
                 <button
                   onClick={() => {
-                    if (c.type === "audio" && c.dataUrl && audioRef.current) {
-                      audioRef.current.src = c.dataUrl;
-                      void audioRef.current.play();
-                    }
+                    const next = notes.filter((x) => x.id !== n.id);
+                    setNotes(next);
+                    saveList(NOTES_KEY, next);
                   }}
-                  className="min-w-0 text-left"
+                  className="shrink-0 text-faint hover:text-[#E08079]"
                 >
-                  <span className="block truncate text-sm text-ink">{c.name}</span>
-                  <span className="block text-xs text-muted">{c.trackName}</span>
+                  <Trash2 className="h-3.5 w-3.5" />
                 </button>
-                <div className="flex shrink-0 items-center gap-0.5">
-                  <IB onClick={() => onFavClip(c.trackId, c.id)}>
-                    <Star className={`h-3.5 w-3.5 ${c.favorite ? "fill-brass text-brass" : ""}`} />
-                  </IB>
-                  <IB onClick={() => { const n = window.prompt("Rename", c.name); if (n) onRenameClip(c.trackId, c.id, n); }}>
-                    <Pencil className="h-3.5 w-3.5" />
-                  </IB>
-                  <IB onClick={() => onRemoveClip(c.trackId, c.id)}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </IB>
-                </div>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      <button onClick={newIdea} className="btn-ghost mt-3 w-full border-brass/40 text-brass">
+        <Plus className="h-4 w-4" /> New Idea
+      </button>
       <audio ref={audioRef} className="hidden" />
     </aside>
+  );
+}
+
+function MenuItem({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button onClick={onClick} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-ink hover:bg-white/5">
+      {children}
+    </button>
   );
 }
