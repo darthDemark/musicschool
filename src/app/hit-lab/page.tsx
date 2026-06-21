@@ -265,11 +265,43 @@ export default function HitLabPage() {
                   {(tab) => (
                     <>
                       {tab === "Overview" && (
-                        <div className="space-y-4">
-                          <SectionTitle>Overview</SectionTitle>
-                          <p className="text-[15px] leading-relaxed text-ink">
-                            {report.overview}
-                          </p>
+                        <div className="space-y-5">
+                          <div>
+                            <SectionTitle className="mb-2">Overview</SectionTitle>
+                            <p className="text-[15px] leading-relaxed text-ink">
+                              {report.overview}
+                            </p>
+                          </div>
+
+                          {/* Why It Works */}
+                          <div className="rounded-lg border border-brass/25 bg-brass/[0.06] p-5">
+                            <p className="label-caps mb-2 text-brass">Why It Works</p>
+                            <ul className="space-y-2">
+                              {[report.harmony[0], report.melody[0], report.arrangement[0]]
+                                .filter(Boolean)
+                                .map((reason, i) => (
+                                  <li key={i} className="flex gap-2.5 text-sm leading-relaxed text-ink">
+                                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brass" />
+                                    {reason}
+                                  </li>
+                                ))}
+                            </ul>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2 text-xs text-muted">
+                            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1">
+                              {report.bpm}
+                            </span>
+                            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1">
+                              {report.key}
+                            </span>
+                            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1">
+                              {report.genre}
+                            </span>
+                            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1">
+                              {report.length}
+                            </span>
+                          </div>
                         </div>
                       )}
                       {tab === "Structure Timeline" && (

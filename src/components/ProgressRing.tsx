@@ -29,7 +29,7 @@ export function ProgressRing({
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="#D8CFC0"
+          stroke="rgba(255,255,255,0.10)"
           strokeWidth={stroke}
         />
         <circle
@@ -37,7 +37,7 @@ export function ProgressRing({
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="#C49B3D"
+          stroke="#D4AF37"
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={circumference}
@@ -46,12 +46,13 @@ export function ProgressRing({
         />
       </svg>
       <div className="absolute flex flex-col items-center">
-        <span className="font-serif text-3xl text-ink">
+        <span
+          className="font-semibold text-ink"
+          style={{ fontSize: Math.max(13, Math.round(size / 4.5)) }}
+        >
           {label ?? `${clamped}%`}
         </span>
-        {sublabel && (
-          <span className="label-caps mt-0.5">{sublabel}</span>
-        )}
+        {sublabel && <span className="label-caps mt-0.5">{sublabel}</span>}
       </div>
     </div>
   );

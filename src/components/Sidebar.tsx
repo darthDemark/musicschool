@@ -3,17 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Menu, X, Music2 } from "lucide-react";
+import { Menu, X, AudioLines } from "lucide-react";
 import clsx from "clsx";
-import { navItems, type NavItem } from "@/lib/nav";
-
-const groupOrder: NavItem["group"][] = [
-  "Learn",
-  "Analyze",
-  "Create",
-  "Library",
-  "System",
-];
+import { navItems, groupOrder } from "@/lib/nav";
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
@@ -40,10 +32,10 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
                       href={item.href}
                       onClick={onNavigate}
                       className={clsx(
-                        "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                        "group flex items-center gap-3 rounded-lg border-l-2 py-2 pl-2.5 pr-3 text-sm transition-colors",
                         active
-                          ? "bg-white/10 text-ivory"
-                          : "text-white/60 hover:bg-white/5 hover:text-ivory"
+                          ? "border-brass bg-white/10 text-ivory"
+                          : "border-transparent text-white/60 hover:bg-white/5 hover:text-ivory"
                       )}
                     >
                       <Icon
@@ -69,12 +61,12 @@ function Brand() {
   return (
     <Link href="/" className="flex items-center gap-3 px-2">
       <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-brass/40 bg-brass/10">
-        <Music2 className="h-5 w-5 text-brass" />
+        <AudioLines className="h-5 w-5 text-brass" />
       </span>
       <span className="flex flex-col leading-tight">
-        <span className="font-serif text-lg text-ivory">Music School</span>
+        <span className="text-lg font-semibold tracking-tight text-ivory">Hit Camp</span>
         <span className="text-[10px] uppercase tracking-[0.22em] text-white/40">
-          Conservatory
+          by HitLab
         </span>
       </span>
     </Link>
@@ -110,7 +102,7 @@ export function Sidebar() {
           <NavLinks />
         </div>
         <div className="border-t border-white/10 px-5 py-4">
-          <p className="text-[11px] text-white/40">Prototype • v0.1</p>
+          <p className="text-[11px] text-white/40">Hit Camp • Make hit records</p>
         </div>
       </aside>
 

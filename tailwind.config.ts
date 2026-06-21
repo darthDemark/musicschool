@@ -9,24 +9,36 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ivory: "#F7F4EE",
-        sand: "#EFE8DC",
-        charcoal: "#111111",
-        ink: "#1F1F1F",
-        muted: "#666666",
-        brass: "#C49B3D",
-        burgundy: "#6D1F2A",
-        line: "#D8CFC0",
+        // Hit Camp dark studio system. Legacy token names are kept and remapped
+        // to dark-theme values so the whole app reskins without per-element edits.
+        studio: "#050505", // page background
+        studio2: "#080808",
+        surface: "#111111",
+        elevated: "#151515", // elevated cards
+        ivory: "#F5F5F0", // primary light text / on-dark
+        sand: "#141416", // subtle elevated dark panel
+        charcoal: "#0D0D0D", // sidebar / dark surface + text on gold
+        ink: "#F5F5F0", // primary text
+        muted: "#B5B5B5", // secondary text
+        faint: "#7A7A7A", // muted text
+        brass: "#D4AF37", // gold accent
+        burgundy: "#F0C36A", // warm accent
+        line: "#1E1E1E",
         success: "#7A9B76",
-        amber: "#B8860B",
+        amber: "#E0A852",
+        gold: "#D4AF37",
+        warm: "#F0C36A",
+        goldcta: "#E2B93B", // bright gold CTA
       },
       fontFamily: {
-        serif: ["var(--font-playfair)", "Playfair Display", "Georgia", "serif"],
+        // Sans-only system. `serif` is intentionally aliased to Inter so existing
+        // `font-serif` headings render as clean sans without editing every page.
+        serif: ["var(--font-inter)", "Inter", "system-ui", "sans-serif"],
         sans: ["var(--font-inter)", "Inter", "system-ui", "sans-serif"],
       },
       boxShadow: {
-        card: "0 1px 2px rgba(31,31,31,0.04), 0 4px 16px rgba(31,31,31,0.05)",
-        "card-hover": "0 2px 4px rgba(31,31,31,0.06), 0 8px 28px rgba(31,31,31,0.08)",
+        card: "0 1px 2px rgba(0,0,0,0.4), 0 10px 30px rgba(0,0,0,0.45)",
+        "card-hover": "0 2px 6px rgba(0,0,0,0.5), 0 16px 40px rgba(0,0,0,0.55)",
       },
       borderRadius: {
         xl2: "14px",

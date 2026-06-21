@@ -16,19 +16,24 @@ import {
   ArrowRight,
   MapPin,
   Music2,
+  Mic,
+  Lightbulb,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, SectionTitle } from "@/components/Card";
 import { FadeIn } from "@/components/Motion";
+import { ProgressRing } from "@/components/ProgressRing";
 import { WorkoutPanel } from "@/components/WorkoutPanel";
 import { useWorkout } from "@/lib/useWorkout";
 import { getStorage, setStorage } from "@/lib/storage";
 import { logActivity } from "@/lib/activity";
+import { KEYS, addItem, makeItem } from "@/lib/hitcampStore";
 import { loadProjects, saveProjects, loadActiveId } from "@/lib/writerTools";
 import {
   HOOK_TYPES,
   hookTypeLessons,
   scoreHook,
+  scoreHookCategories,
   scoringRubric,
   transformIdea,
   rewriteHook,
@@ -37,8 +42,19 @@ import {
   type RewriteMode,
 } from "@/lib/hookLab";
 
-const TABS = ["Learn Hook Types", "Hook Builder", "Hook Transformer"] as const;
+const TABS = ["Hook Studio", "Learn Hook Types", "Hook Builder", "Hook Transformer"] as const;
 type Tab = (typeof TABS)[number];
+
+const IMPROVE_CHIPS: { mode: RewriteMode; label: string }[] = [
+  { mode: "specific", label: "Make it more specific" },
+  { mode: "contrast", label: "Add a contrast word" },
+  { mode: "shorten", label: "Shorten the title" },
+  { mode: "verb", label: "Stronger verb" },
+  { mode: "imagery", label: "More imagery" },
+  { mode: "darker", label: "Make darker" },
+  { mode: "romantic", label: "Make more romantic" },
+  { mode: "rhythmic", label: "Make more rhythmic" },
+];
 
 const GENRES = ["Pop", "Rock", "R&B", "Soul", "Funk", "Hip-Hop", "Jazz", "Film", "EDM", "Country"];
 
@@ -53,8 +69,11 @@ interface SavedHook {
 }
 
 export default function HookLabPage() {
-  const [tab, setTab] = useState<Tab>("Learn Hook Types");
+  const [tab, setTab] = useState<Tab>("Hook Studio");
   const [selectedHookType, setSelectedHookType] = useState<HookType>("Title Hook");
+
+  // Hook Studio
+  const [hookText, setHookText] = useState("");
 
   // Builder
   const [theme, setTheme] = useState("");
@@ -107,6 +126,12 @@ export default function HookLabPage() {
       savedAt: new Date().toLocaleDateString(),
     };
     persistSaved([hook, ...savedHooks]);
+    // Canonical store for cross-app/dashboard + future Supabase.
+    addItem(KEYS.hooks, {
+      ...makeItem({ type: "hook", title: text }),
+      tags: opts?.chorus ? ["chorus", hookType] : [hookType],
+      notes: `Score ${hook.score}`,
+    });
     logActivity();
     // Workout: increment the relevant action(s).
     wk.recordAction("save");
@@ -184,6 +209,13 @@ export default function HookLabPage() {
     persistSaved(savedHooks.filter((h) => h.id !== id));
 
   const lesson = hookTypeLessons[selectedHookType];
+  const studioScore = scoreHookCategories(hookText);
+
+  const improveStudio = (mode: RewriteMode) => {
+    if (!hookText.trim()) return;
+    setHookText((cur) => rewriteHook(cur, mode));
+    wk.recordAction("rewrite");
+  };
 
   return (
     <div>
@@ -219,7 +251,7 @@ export default function HookLabPage() {
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-6">
           {/* Hook type selector — shared across Learn & Transformer */}
-          {tab !== "Hook Builder" && (
+          {(tab === "Learn Hook Types" || tab === "Hook Transformer") && (
             <Card>
               <p className="label-caps mb-3">Hook Type</p>
               <div className="flex flex-wrap gap-2">
@@ -238,6 +270,144 @@ export default function HookLabPage() {
                 ))}
               </div>
             </Card>
+          )}
+
+          {tab === "Hook Studio" && (
+            <FadeIn className="space-y-6">
+              {/* 1. Create Your Hook */}
+              <Card>
+                <div className="mb-4 flex items-center gap-2">
+                  <StepNum n={1} />
+                  <SectionTitle>Create Your Hook</SectionTitle>
+                </div>
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {HOOK_TYPES.map((h) => (
+                    <button
+                      key={h}
+                      onClick={() => setSelectedHookType(h)}
+                      className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${
+                        selectedHookType === h
+                          ? "border-brass bg-brass/15 font-medium text-ink"
+                          : "border-line bg-white/[0.04] text-muted hover:border-brass/50 hover:text-ink"
+                      }`}
+                    >
+                      {h}
+                    </button>
+                  ))}
+                </div>
+                <textarea
+                  value={hookText}
+                  onChange={(e) => setHookText(e.target.value)}
+                  rows={3}
+                  maxLength={120}
+                  placeholder="Write your hook idea… or record it."
+                  className="w-full resize-none rounded-lg border border-white/10 bg-white/[0.04] p-4 text-[15px] text-ink outline-none placeholder:text-muted/60 focus:border-brass focus:ring-1 focus:ring-brass/30"
+                />
+                <div className="mt-2 flex items-center justify-between">
+                  {/* Waveform placeholder */}
+                  <div className="flex h-7 items-end gap-[2px]">
+                    {Array.from({ length: 36 }).map((_, i) => (
+                      <span
+                        key={i}
+                        className="w-[2px] rounded-full bg-brass/40"
+                        style={{ height: `${20 + Math.abs(Math.sin(i * 0.6)) * 80}%` }}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-xs text-muted">{hookText.length}/120</span>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    title="Recording coming soon"
+                    className="inline-flex items-center gap-2 rounded-lg border border-[#C2453B]/40 bg-[#C2453B]/10 px-4 py-2.5 text-sm font-medium text-[#E08079] transition-colors hover:bg-[#C2453B]/20"
+                  >
+                    <Mic className="h-4 w-4" />
+                    Record
+                  </button>
+                  <button
+                    onClick={() => hookText.trim() && saveHook(hookText, selectedHookType)}
+                    disabled={!hookText.trim()}
+                    className="btn-ghost"
+                  >
+                    <BookmarkPlus className="h-4 w-4" />
+                    Save Hook
+                  </button>
+                </div>
+              </Card>
+
+              {/* 2. Hook Score */}
+              <Card>
+                <div className="mb-4 flex items-center gap-2">
+                  <StepNum n={2} />
+                  <SectionTitle>Hook Score</SectionTitle>
+                </div>
+                {hookText.trim() ? (
+                  <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+                    <div className="flex shrink-0 justify-center">
+                      <ProgressRing
+                        value={studioScore.overall * 10}
+                        label={studioScore.overall.toFixed(1)}
+                        sublabel="Overall"
+                        size={120}
+                      />
+                    </div>
+                    <div className="flex-1 space-y-3">
+                      {studioScore.cats.map((c) => (
+                        <div key={c.label}>
+                          <div className="mb-1 flex items-baseline justify-between text-sm">
+                            <span className="text-ink">{c.label}</span>
+                            <span className="font-serif text-brass">{c.value.toFixed(1)}</span>
+                          </div>
+                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-brass to-warm"
+                              style={{ width: `${c.value * 10}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() =>
+                          document
+                            .getElementById("improve-panel")
+                            ?.scrollIntoView({ behavior: "smooth" })
+                        }
+                        className="btn-primary mt-2"
+                      >
+                        <Lightbulb className="h-4 w-4" />
+                        View Suggestions
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted">
+                    Write a hook above to see its score across Catchiness, Clarity,
+                    Uniqueness, and Replay Value.
+                  </p>
+                )}
+              </Card>
+
+              {/* 3. Improve Your Hook */}
+              <Card>
+                <div id="improve-panel" className="mb-4 flex items-center gap-2">
+                  <StepNum n={3} />
+                  <SectionTitle>Improve Your Hook</SectionTitle>
+                </div>
+                  <div className="flex flex-wrap gap-2">
+                    {IMPROVE_CHIPS.map((c) => (
+                      <button
+                        key={c.mode}
+                        onClick={() => improveStudio(c.mode)}
+                        disabled={!hookText.trim()}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-brass/30 bg-brass/10 px-3.5 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-brass/20 disabled:opacity-50"
+                      >
+                        <Wand2 className="h-3.5 w-3.5 text-brass" />
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+              </Card>
+            </FadeIn>
           )}
 
           {tab === "Learn Hook Types" && (
@@ -467,6 +637,14 @@ export default function HookLabPage() {
 
 /* ------------------------------- bits ------------------------------------ */
 
+function StepNum({ n }: { n: number }) {
+  return (
+    <span className="flex h-7 w-7 items-center justify-center rounded-full border border-brass/40 bg-brass/10 font-serif text-sm text-brass">
+      {n}
+    </span>
+  );
+}
+
 function Field({
   icon: Icon,
   label,
@@ -582,7 +760,7 @@ function Rubric({ score }: { score: ReturnType<typeof scoreHook> }) {
               <span className="text-ink">{s.label}</span>
               <span className="font-serif text-burgundy">{s.value.toFixed(1)}</span>
             </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white">
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-brass to-burgundy"
                 style={{ width: `${(s.value / 10) * 100}%` }}

@@ -133,6 +133,51 @@ export interface HookScore {
   scores: { label: string; value: number }[];
 }
 
+export interface HookCategoryScore {
+  overall: number;
+  cats: { label: string; value: number }[];
+}
+
+const EMO_WORDS = [
+  "love", "heart", "fire", "night", "alone", "crave", "burn", "ache", "dream",
+  "lost", "gold", "danger", "fall", "stay", "gone", "need", "want", "rain",
+  "cold", "home", "kiss", "cry", "hold", "run", "break", "secret",
+];
+const SPECIFIC_RE = /\b(\d+|tonight|3am|car|door|street|phone|name|city|window|midnight|highway|neon)\b/i;
+
+const clampS = (v: number) => Math.max(4, Math.min(10, +v.toFixed(1)));
+
+/**
+ * Four-category score for the Hook Studio, using real heuristics:
+ * length, specificity, repetition, and emotional words.
+ */
+export function scoreHookCategories(text: string): HookCategoryScore {
+  const t = (text || "").trim();
+  const words = t.split(/\s+/).filter(Boolean);
+  const wc = words.length;
+  const lower = t.toLowerCase();
+  const emoHits = EMO_WORDS.filter((w) => lower.includes(w)).length;
+  const uniqueWords = new Set(words.map((w) => w.toLowerCase())).size;
+  const repetition = wc > 0 ? 1 - uniqueWords / wc : 0; // higher = more repeated
+  const specific = SPECIFIC_RE.test(t) ? 1 : 0;
+
+  const clarity = wc === 0 ? 4 : clampS(10 - Math.max(0, wc - 6) * 0.9);
+  const catchiness =
+    wc === 0 ? 4 : clampS(5 + emoHits * 1.1 + repetition * 4 + (wc >= 2 && wc <= 6 ? 1.6 : 0));
+  const uniqueness =
+    wc === 0 ? 4 : clampS(5.4 + specific * 2 + (uniqueWords >= 4 ? 1 : 0) + emoHits * 0.4);
+  const replay = wc === 0 ? 4 : clampS((catchiness + uniqueness) / 2 + repetition * 1.5);
+
+  const cats = [
+    { label: "Catchiness", value: catchiness },
+    { label: "Clarity", value: clarity },
+    { label: "Uniqueness", value: uniqueness },
+    { label: "Replay Value", value: replay },
+  ];
+  const overall = +(cats.reduce((a, c) => a + c.value, 0) / cats.length).toFixed(1);
+  return { overall, cats };
+}
+
 export function scoreHook(text: string, hookType?: string): HookScore {
   const seed = hashString((text + (hookType ?? "")).toLowerCase());
   const words = text.trim().split(/\s+/).filter(Boolean).length || 1;
@@ -180,7 +225,16 @@ export function transformIdea(base: string, hookType: HookType): string {
 
 // ------------------------------- Rewrites ----------------------------------
 
-export type RewriteMode = "darker" | "romantic" | "rhythmic" | "singable";
+export type RewriteMode =
+  | "darker"
+  | "romantic"
+  | "rhythmic"
+  | "singable"
+  | "specific"
+  | "contrast"
+  | "shorten"
+  | "verb"
+  | "imagery";
 
 const DARK: Record<string, string> = {
   blue: "midnight",
@@ -207,6 +261,25 @@ function swap(text: string, map: Record<string, string>): string {
   });
 }
 
+const STRONG_VERBS: Record<string, string> = {
+  want: "crave",
+  like: "need",
+  go: "run",
+  is: "burns",
+  are: "break",
+  have: "hold",
+  see: "chase",
+  feel: "ache",
+  get: "take",
+  make: "break",
+};
+const IMAGERY_TAILS = [
+  "like rain on glass",
+  "under the streetlights",
+  "with the engine still running",
+  "in the blue before dawn",
+];
+
 export function rewriteHook(text: string, mode: RewriteMode): string {
   const t = text.trim();
   if (!t) return text;
@@ -225,6 +298,18 @@ export function rewriteHook(text: string, mode: RewriteMode): string {
       const words = t.replace(/[".]/g, "").split(/\s+/);
       return words.slice(0, 5).join(" ");
     }
+    case "shorten": {
+      const words = t.replace(/[".]/g, "").split(/\s+/);
+      return words.slice(0, 4).join(" ");
+    }
+    case "verb":
+      return swap(t, STRONG_VERBS);
+    case "imagery":
+      return `${t}, ${IMAGERY_TAILS[t.length % IMAGERY_TAILS.length]}`;
+    case "contrast":
+      return `${t} — but I can't walk away`;
+    case "specific":
+      return `${t} at 3am`;
     default:
       return text;
   }

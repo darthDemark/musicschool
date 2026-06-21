@@ -63,7 +63,7 @@ function Sequencer({
   onToggle: (row: number, col: number) => void;
 }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-line bg-white">
+    <div className="overflow-x-auto rounded-lg border border-line bg-white/[0.03]">
       <div className="flex" style={{ minWidth: 560 }}>
         {/* Row labels */}
         <div className="flex flex-col border-r border-line">

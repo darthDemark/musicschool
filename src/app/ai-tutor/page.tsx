@@ -34,9 +34,9 @@ export default function AITutorPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="AI Tutor"
+        eyebrow="AI Mentor"
         title="Your Private Mentor"
-        subtitle="A serious music tutor that can teach, quiz, analyze, and coach — across theory, ear, and craft."
+        subtitle="A mentor that can teach, quiz, analyze, and coach — across theory, ear, and craft."
       />
 
       {/* Context selector */}
