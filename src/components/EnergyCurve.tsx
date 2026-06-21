@@ -18,35 +18,36 @@ export function EnergyCurve({ data }: { data: EnergyPoint[] }) {
         <AreaChart data={data} margin={{ top: 10, right: 12, left: -16, bottom: 0 }}>
           <defs>
             <linearGradient id="energyFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#C49B3D" stopOpacity={0.55} />
-              <stop offset="100%" stopColor="#C49B3D" stopOpacity={0.04} />
+              <stop offset="0%" stopColor="#D4AF37" stopOpacity={0.5} />
+              <stop offset="100%" stopColor="#D4AF37" stopOpacity={0.04} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#D8CFC0" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.10)" vertical={false} />
           <XAxis
             dataKey="time"
-            tick={{ fill: "#666666", fontSize: 12 }}
-            stroke="#D8CFC0"
+            tick={{ fill: "#A8A8A8", fontSize: 12 }}
+            stroke="rgba(255,255,255,0.15)"
           />
           <YAxis
             domain={[0, 100]}
-            tick={{ fill: "#666666", fontSize: 12 }}
-            stroke="#D8CFC0"
+            tick={{ fill: "#A8A8A8", fontSize: 12 }}
+            stroke="rgba(255,255,255,0.15)"
           />
           <Tooltip
             contentStyle={{
-              background: "#FFFFFF",
-              border: "1px solid #D8CFC0",
+              background: "#0D0D0D",
+              border: "1px solid rgba(255,255,255,0.12)",
               borderRadius: 10,
               fontSize: 13,
             }}
-            labelStyle={{ color: "#1F1F1F", fontWeight: 600 }}
+            labelStyle={{ color: "#F5F5F0", fontWeight: 600 }}
+            itemStyle={{ color: "#F5F5F0" }}
             formatter={(value: number) => [`${value}`, "Energy"]}
           />
           <Area
             type="monotone"
             dataKey="energy"
-            stroke="#6D1F2A"
+            stroke="#F0C36A"
             strokeWidth={2.5}
             fill="url(#energyFill)"
           />

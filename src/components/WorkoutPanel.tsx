@@ -113,7 +113,7 @@ export function WorkoutPanel({
                       </span>
                     )}
                   </div>
-                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white">
+                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
                     <div
                       className="h-full rounded-full bg-success transition-all duration-500"
                       style={{ width: `${(Math.min(item.done, item.total) / item.total) * 100}%` }}

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Menu, X, Flame } from "lucide-react";
+import { Menu, X, AudioLines } from "lucide-react";
 import clsx from "clsx";
 import { navItems, groupOrder } from "@/lib/nav";
 
@@ -32,10 +32,10 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
                       href={item.href}
                       onClick={onNavigate}
                       className={clsx(
-                        "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                        "group flex items-center gap-3 rounded-lg border-l-2 py-2 pl-2.5 pr-3 text-sm transition-colors",
                         active
-                          ? "bg-white/10 text-ivory"
-                          : "text-white/60 hover:bg-white/5 hover:text-ivory"
+                          ? "border-brass bg-white/10 text-ivory"
+                          : "border-transparent text-white/60 hover:bg-white/5 hover:text-ivory"
                       )}
                     >
                       <Icon
@@ -61,7 +61,7 @@ function Brand() {
   return (
     <Link href="/" className="flex items-center gap-3 px-2">
       <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-brass/40 bg-brass/10">
-        <Flame className="h-5 w-5 text-brass" />
+        <AudioLines className="h-5 w-5 text-brass" />
       </span>
       <span className="flex flex-col leading-tight">
         <span className="text-lg font-semibold tracking-tight text-ivory">Hit Camp</span>

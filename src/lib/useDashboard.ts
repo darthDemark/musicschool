@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { getStorage } from "./storage";
-import { theoryCurriculum } from "./theoryCurriculum";
+import { theoryCurriculum, theorySectionOrder } from "./theoryCurriculum";
+import { curriculumUnits } from "./mockData";
 import {
   getCompletedSubtopics,
   totalSubtopics,
   categoryCompleted,
+  categoryProgress,
 } from "./theoryProgress";
 import { computeStreak } from "./activity";
 
@@ -15,6 +17,14 @@ export interface ContinueLearning {
   title: string;
   lessonNumber: number;
   progress: number;
+  lessonsDone: number;
+  lessonsTotal: number;
+}
+
+export interface Skill {
+  name: string;
+  pct: number;
+  level: "Beginner" | "Intermediate" | "Advanced";
 }
 
 export interface ListeningAssignment {
@@ -31,7 +41,15 @@ export interface DashboardData {
   songsAnalyzed: number;
   hooksWritten: number;
   streak: number;
+  xp: number;
+  level: number;
+  levelProgress: number;
+  xpIntoLevel: number;
+  xpForLevel: number;
+  skills: Skill[];
 }
+
+const XP_PER_LEVEL = 600;
 
 const EMPTY: DashboardData = {
   continueLearning: null,
@@ -41,7 +59,19 @@ const EMPTY: DashboardData = {
   songsAnalyzed: 0,
   hooksWritten: 0,
   streak: 0,
+  xp: 0,
+  level: 1,
+  levelProgress: 0,
+  xpIntoLevel: 0,
+  xpForLevel: XP_PER_LEVEL,
+  skills: [],
 };
+
+function levelFromPct(pct: number): Skill["level"] {
+  if (pct < 40) return "Beginner";
+  if (pct < 80) return "Intermediate";
+  return "Advanced";
+}
 
 /** Reads the user's real activity from localStorage. No mock values. */
 export function useDashboard() {
@@ -71,6 +101,8 @@ export function useDashboard() {
         title: subtopic.title,
         lessonNumber: idx + 1,
         progress: catTotal ? Math.round((catDone / catTotal) * 100) : 0,
+        lessonsDone: catDone,
+        lessonsTotal: catTotal,
       };
     }
 
@@ -78,6 +110,28 @@ export function useDashboard() {
     const hooksWritten = (getStorage<unknown[]>("hook-saved") ?? []).length;
     const songsAnalyzed = (getStorage<unknown[]>("hit-lab-reports") ?? []).length;
     const streak = computeStreak();
+
+    // XP / level derived entirely from real activity.
+    const workoutXp =
+      getStorage<{ totalXp?: number }>("hook-workout-meta")?.totalXp ?? 0;
+    const xp =
+      workoutXp + lessonsCompleted * 100 + songsAnalyzed * 60 + hooksWritten * 15;
+    const level = Math.floor(xp / XP_PER_LEVEL) + 1;
+    const xpIntoLevel = xp % XP_PER_LEVEL;
+    const levelProgress = Math.round((xpIntoLevel / XP_PER_LEVEL) * 100);
+
+    // Skills = theory categories with progress, leveled by completion.
+    const skills: Skill[] = theorySectionOrder
+      .map((id) => {
+        const pct = categoryProgress(id, completed);
+        const name =
+          curriculumUnits.find((u) => u.id === id)?.title ??
+          theoryCurriculum[id]?.unit ??
+          id;
+        return { name, pct, level: levelFromPct(pct) };
+      })
+      .filter((s) => s.pct > 0)
+      .sort((a, b) => b.pct - a.pct);
 
     setData({
       continueLearning,
@@ -87,6 +141,12 @@ export function useDashboard() {
       songsAnalyzed,
       hooksWritten,
       streak,
+      xp,
+      level,
+      levelProgress,
+      xpIntoLevel,
+      xpForLevel: XP_PER_LEVEL,
+      skills,
     });
     setHydrated(true);
   }, []);

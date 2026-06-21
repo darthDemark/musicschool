@@ -582,7 +582,7 @@ function Rubric({ score }: { score: ReturnType<typeof scoreHook> }) {
               <span className="text-ink">{s.label}</span>
               <span className="font-serif text-burgundy">{s.value.toFixed(1)}</span>
             </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white">
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-brass to-burgundy"
                 style={{ width: `${(s.value / 10) * 100}%` }}
